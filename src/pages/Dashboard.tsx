@@ -18,6 +18,7 @@ import {
 import * as echarts from 'echarts';
 import { PageHeader, StatCard, ChartCard, StatusBadge, PlatformBadge, Loading, Empty } from '@/components';
 import { formatCurrency, formatDateTime, formatPercent, formatNumber } from '@/utils/format';
+import { cn } from '@/lib/utils';
 import { getOrderStats } from '@/api/orders';
 import { getFinanceStats } from '@/api/finance';
 import { getLogisticsStats } from '@/api/logistics';

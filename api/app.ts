@@ -32,14 +32,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use('/api/auth', authRoutes)
 
 /**
- * health
+ * health check
  */
-app.use(
+app.get(
   '/api/health',
   (req: Request, res: Response, next: NextFunction): void => {
     res.status(200).json({
-      success: true,
+      code: 200,
       message: 'ok',
+      data: {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+      },
     })
   },
 )
@@ -48,9 +53,11 @@ app.use(
  * error handler middleware
  */
 app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error('Server error:', error)
   res.status(500).json({
-    success: false,
-    error: 'Server internal error',
+    code: 500,
+    message: '服务器内部错误',
+    data: null,
   })
 })
 
@@ -59,8 +66,9 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
  */
 app.use((req: Request, res: Response) => {
   res.status(404).json({
-    success: false,
-    error: 'API not found',
+    code: 404,
+    message: 'API 接口不存在',
+    data: null,
   })
 })
 

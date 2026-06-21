@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, LoginRequest } from '@/@types/system';
-import { login, logout, getCurrentUser } from '@/api/auth';
+import { login as apiLogin, logout as apiLogout, getCurrentUser } from '@/api/auth';
 import { storage } from '@/utils/storage';
 
 interface AuthState {
@@ -16,7 +16,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+  user: storage.getUser<User>(),
   token: storage.getToken(),
   isAuthenticated: !!storage.getToken(),
   loading: false,
@@ -25,20 +25,29 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (params: LoginRequest) => {
     set({ loading: true, error: null });
     try {
-      const response = await login(params);
+      const response = await apiLogin(params);
       if (response.code === 200 && response.data) {
+        const { token, user, permissions } = response.data;
+        storage.setToken(token);
+        storage.setUser(user);
+        if (permissions) {
+          storage.setPermissions(permissions);
+        }
         set({
-          user: response.data.user,
-          token: response.data.token,
+          user,
+          token,
           isAuthenticated: true,
           loading: false,
+          error: null,
         });
+      } else {
+        const errorMsg = response.message || '登录失败，请检查用户名和密码';
+        set({ error: errorMsg, loading: false });
+        throw new Error(errorMsg);
       }
     } catch (err: any) {
-      set({ 
-        error: err.message || '登录失败，请检查用户名和密码', 
-        loading: false 
-      });
+      const errorMsg = err.message || err.code || '登录失败，请检查用户名和密码';
+      set({ error: errorMsg, loading: false });
       throw err;
     }
   },
@@ -46,7 +55,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     set({ loading: true });
     try {
-      await logout();
+      await apiLogout();
+    } catch (err) {
+      // Ignore logout errors
+    } finally {
+      storage.removeToken();
+      storage.removeUser();
+      storage.removePermissions();
       set({
         user: null,
         token: null,
@@ -54,20 +69,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         loading: false,
         error: null,
       });
-    } catch (err: any) {
-      set({ 
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        loading: false,
-      });
     }
   },
 
   fetchCurrentUser: async () => {
     const token = storage.getToken();
     if (!token) {
-      set({ isAuthenticated: false, user: null });
+      set({ isAuthenticated: false, user: null, token: null });
       return;
     }
     
@@ -75,21 +83,35 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await getCurrentUser();
       if (response.code === 200 && response.data) {
+        storage.setUser(response.data);
         set({
           user: response.data,
           isAuthenticated: true,
           loading: false,
         });
+      } else {
+        storage.removeToken();
+        storage.removeUser();
+        storage.removePermissions();
+        set({ 
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          loading: false,
+        });
       }
     } catch (err: any) {
+      if (err.code === 401 || err.status === 401) {
+        storage.removeToken();
+        storage.removeUser();
+        storage.removePermissions();
+      }
       set({ 
         user: null,
         token: null,
         isAuthenticated: false,
         loading: false,
       });
-      storage.removeToken();
-      storage.removeUser();
     }
   },
 

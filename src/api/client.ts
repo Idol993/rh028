@@ -1,14 +1,25 @@
 import axios from 'axios';
+import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@/@types/api';
 import { storage } from '@/utils/storage';
 
-const client = axios.create({
+const baseClient = axios.create({
   baseURL: '/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+interface TypedAxiosInstance extends Omit<AxiosInstance, 'get' | 'post' | 'put' | 'delete' | 'patch'> {
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>;
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>;
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>;
+}
+
+const client = baseClient as TypedAxiosInstance;
 
 client.interceptors.request.use((config) => {
   const token = storage.getToken();
@@ -26,9 +37,19 @@ client.interceptors.response.use(
     if (error.response?.status === 401) {
       storage.removeToken();
       storage.removeUser();
-      window.location.href = '/login';
+      storage.removePermissions();
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
-    return Promise.reject(error);
+    
+    const errorResponse = error.response?.data || {
+      code: error.response?.status || 500,
+      message: error.message || '网络请求失败，请稍后重试',
+      data: null,
+    };
+    
+    return Promise.reject(errorResponse);
   }
 );
 

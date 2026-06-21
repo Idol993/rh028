@@ -1,6 +1,10 @@
 export type ProfitDimension = 'order' | 'sku' | 'store' | 'platform' | 'warehouse' | 'country' | 'category' | 'monthly';
 export type ExpenseType = 'product_cost' | 'first_mile_shipping' | 'warehouse_storage' | 'last_mile_shipping' | 'platform_commission' | 'transaction_fee' | 'promotion' | 'tax' | 'packaging' | 'return' | 'other';
 export type ExpenseCategory = 'direct_cost' | 'operating_cost' | 'marketing_cost' | 'logistics_cost' | 'tax_cost';
+export type ExpenseStatus = 'pending' | 'approved' | 'paid' | 'rejected';
+export type TransactionType = 'income' | 'expense' | 'transfer' | 'refund';
+export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
+export type ReportPeriod = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 export const EXPENSE_TYPE_NAMES: Record<ExpenseType, string> = {
   product_cost: '商品成本',
@@ -48,12 +52,19 @@ export interface OrderCostDetail {
 }
 
 export interface ProfitReport {
+  id: string;
+  reportNo?: string;
   dimension: ProfitDimension;
+  period?: string;
+  platform?: string;
+  storeId?: string;
+  warehouseId?: string;
   startDate: string;
   endDate: string;
   summary: ProfitSummary;
   details: ProfitDetailItem[];
   trendData: ProfitTrendPoint[];
+  createdAt: string;
 }
 
 export interface ProfitSummary {
@@ -87,10 +98,12 @@ export interface ProfitTrendPoint {
 
 export interface Expense {
   id: string;
+  expenseNo?: string;
   type: ExpenseType;
   typeName: string;
   category: ExpenseCategory;
   categoryName: string;
+  status: ExpenseStatus;
   amount: number;
   currency: string;
   orderId?: string;
@@ -99,6 +112,7 @@ export interface Expense {
   productName?: string;
   warehouseId?: string;
   warehouseName?: string;
+  storeId?: string;
   platform?: string;
   description: string;
   incurredAt: string;
@@ -190,4 +204,91 @@ export interface SkuProfit {
   unitsSold: number;
   avgSellingPrice: number;
   returnRate: number;
+}
+
+export interface CostDetailItem {
+  sku: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+}
+
+export interface CostBreakdown {
+  productCost: number;
+  shippingCostHead: number;
+  shippingCostTail: number;
+  warehouseFee: number;
+  platformCommission: number;
+  transactionFee: number;
+  promotionCost: number;
+  tax: number;
+  otherCost: number;
+}
+
+export interface CostDetail {
+  id: string;
+  orderId: string;
+  orderNo: string;
+  storeId: string;
+  storeName: string;
+  warehouseId: string;
+  warehouseName: string;
+  items: CostDetailItem[];
+  revenue: number;
+  costBreakdown: CostBreakdown;
+  totalCost: number;
+  profit: number;
+  profitMargin: number;
+  currency: string;
+  exchangeRate: number;
+  cnyProfit: number;
+  isSettled: boolean;
+  settledAt?: string;
+  createdAt: string;
+}
+
+export interface Transaction {
+  id: string;
+  transactionNo: string;
+  type: TransactionType;
+  amount: number;
+  currency: string;
+  balanceAfter: number;
+  orderId?: string;
+  orderNo?: string;
+  expenseId?: string;
+  expenseNo?: string;
+  description: string;
+  paymentMethod: string;
+  referenceNo: string;
+  status: TransactionStatus;
+  createdAt: string;
+  settledAt?: string;
+  remarks?: string;
+}
+
+export interface FinanceStats {
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+  profitMargin: number;
+  monthlyRevenue: number[];
+  monthlyProfit: number[];
+  revenueByPlatform: Array<{ platform: string; name: string; revenue: number; profit: number }>;
+  revenueByWarehouse: Array<{ warehouseId: string; warehouseName: string; revenue: number; profit: number }>;
+  costByCategory: Array<{ category: string; amount: number; percentage: number }>;
+  topSellingProducts: Array<{ sku: string; productName: string; quantity: number; revenue: number; profit: number }>;
+  pendingSettlement: number;
+  unsettledOrders: number;
+  avgProfitMargin: number;
+  yoyGrowth: number;
+  momGrowth: number;
+  todayRevenue?: number;
+  todayProfit?: number;
+  todayOrders?: number;
+  monthRevenue?: number;
+  monthProfit?: number;
+  monthOrders?: number;
+  totalExpense?: number;
 }

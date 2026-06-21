@@ -1,4 +1,8 @@
 export type TrackingStatus = 'created' | 'picked_up' | 'in_transit' | 'customs' | 'out_for_delivery' | 'delivered' | 'failed' | 'returned';
+export type ShipmentStatus = 'created' | 'label_printed' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'exception' | 'returned';
+export type LogisticsServiceType = 'standard' | 'express' | 'priority' | 'economy';
+export type ManifestStatus = 'created' | 'submitted' | 'accepted' | 'rejected';
+export type ExceptionType = 'customs_hold' | 'address_issue' | 'weather_delay' | 'damaged' | 'lost' | 'refused' | 'not_shipped' | 'not_picked' | 'transit_timeout' | 'tracking_stopped';
 
 export const TRACKING_STATUS_NAMES: Record<TrackingStatus, string> = {
   created: '已创建',
@@ -11,20 +15,37 @@ export const TRACKING_STATUS_NAMES: Record<TrackingStatus, string> = {
   returned: '已退回',
 };
 
+export const SHIPMENT_STATUS_NAMES: Record<ShipmentStatus, string> = {
+  created: '已创建',
+  label_printed: '面单已打印',
+  picked_up: '已揽收',
+  in_transit: '运输中',
+  out_for_delivery: '派送中',
+  delivered: '已签收',
+  exception: '异常',
+  returned: '已退回',
+};
+
 export interface LogisticsChannel {
   id: string;
   name: string;
+  channelName?: string;
   code: string;
   carrier: string;
   carrierName: string;
+  serviceType?: LogisticsServiceType;
   apiConfig: Record<string, any>;
   supportedCountries: string[];
   basePrice: number;
+  baseCost?: number;
   pricePerKg: number;
+  costPerKg?: number;
   pricePerVolKg?: number;
   fuelSurcharge: number;
+  insuranceCostPercent?: number;
   estimatedDaysMin: number;
   estimatedDaysMax: number;
+  estimatedDeliveryDays?: number;
   weightLimitMin?: number;
   weightLimitMax?: number;
   volumeLimit?: number;
@@ -178,7 +199,7 @@ export interface Manifest {
   logisticsName: string;
   shipmentCount: number;
   totalWeight: number;
-  status: 'created' | 'submitted' | 'accepted' | 'rejected';
+  status: ManifestStatus;
   shipments: Array<{
     orderId: string;
     orderNo: string;
@@ -186,4 +207,99 @@ export interface Manifest {
     weight: number;
   }>;
   createdAt: string;
+}
+
+export interface TrackingRecord {
+  id: string;
+  trackingNo: string;
+  statusCode: string;
+  statusName: string;
+  description: string;
+  location?: string;
+  timestamp: string;
+  courier: string;
+  rawData: string;
+}
+
+export interface ShipmentAddress {
+  country: string;
+  countryName?: string;
+  state?: string;
+  city: string;
+  address1?: string;
+  address2?: string;
+  zipCode: string;
+}
+
+export interface ShipmentDimensions {
+  length: number;
+  width: number;
+  height: number;
+}
+
+export interface Shipment {
+  id: string;
+  shipmentNo: string;
+  orderId: string;
+  orderNo: string;
+  fulfillmentId?: string;
+  warehouseId: string;
+  warehouseName: string;
+  logisticsId: string;
+  logisticsName: string;
+  carrier: string;
+  carrierName: string;
+  trackingNo: string;
+  status: ShipmentStatus;
+  statusName: string;
+  weight: number;
+  dimensions: ShipmentDimensions;
+  shippingCost: number;
+  insuranceCost: number;
+  declaredValue: number;
+  currency: string;
+  origin: ShipmentAddress;
+  destination: ShipmentAddress;
+  senderName: string;
+  senderContact: string;
+  recipientName: string;
+  recipientContact: string;
+  signatureRequired: boolean;
+  trackingHistory: TrackingRecord[];
+  currentLocation?: string;
+  estimatedDelivery?: string;
+  actualDelivery?: string;
+  exceptionType?: string;
+  exceptionDescription?: string;
+  exceptionReportedAt?: string;
+  exceptionResolved?: boolean;
+  labelUrl: string;
+  commercialInvoiceUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LogisticsStats {
+  totalShipments: number;
+  delivered: number;
+  inTransit: number;
+  pending: number;
+  exception: number;
+  returned: number;
+  onTimeRate: number;
+  avgDeliveryTime: number;
+  totalShippingCost: number;
+  avgShippingCost: number;
+  exceptionRate: number;
+  topCarriers: Array<{ carrier: string; count: number; cost: number }>;
+  exceptionTypes: Array<{ type: string; count: number; percentage: number }>;
+  shippedToday?: number;
+  deliveredToday?: number;
+  exceptionCount?: number;
+  averageDeliveryDays?: number;
+  costThisMonth?: number;
+  costByChannel?: Record<string, number>;
+  statusDistribution?: Record<TrackingStatus, number>;
+  exceptionByType?: Record<string, number>;
+  deliveryTimeTrend?: Array<{ date: string; avgDays: number; onTimeRate: number }>;
 }
