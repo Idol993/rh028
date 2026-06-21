@@ -194,8 +194,8 @@ export const calculateShippingCost = async (data: {
   logisticsId: string;
   logisticsName: string;
   carrier: string;
-  serviceType: string;
-  estimatedDeliveryDays: { min: number; max: number };
+  serviceType?: string;
+  estimatedDeliveryDays: number;
   shippingCost: number;
   insuranceCost: number;
   totalCost: number;
@@ -204,16 +204,16 @@ export const calculateShippingCost = async (data: {
   const results = mockLogisticsChannels
     .filter(c => c.isActive && c.supportedCountries.includes(data.destinationCountry))
     .map(channel => {
-      const weightCost = channel.costPerKg * data.weight;
-      const shippingCost = channel.baseCost + weightCost;
-      const insuranceCost = data.declaredValue ? data.declaredValue * channel.insuranceCostPercent / 100 : 0;
+      const weightCost = (channel.costPerKg ?? channel.pricePerKg ?? 0) * data.weight;
+      const shippingCost = (channel.baseCost ?? channel.basePrice ?? 0) + weightCost;
+      const insuranceCost = data.declaredValue && channel.insuranceCostPercent ? data.declaredValue * channel.insuranceCostPercent / 100 : 0;
       
       return {
         logisticsId: channel.id,
-        logisticsName: channel.channelName,
+        logisticsName: channel.channelName ?? channel.name,
         carrier: channel.carrier,
         serviceType: channel.serviceType,
-        estimatedDeliveryDays: channel.estimatedDeliveryDays,
+        estimatedDeliveryDays: channel.estimatedDeliveryDays ?? Math.floor((channel.estimatedDaysMin + channel.estimatedDaysMax) / 2),
         shippingCost: parseFloat(shippingCost.toFixed(2)),
         insuranceCost: parseFloat(insuranceCost.toFixed(2)),
         totalCost: parseFloat((shippingCost + insuranceCost).toFixed(2)),

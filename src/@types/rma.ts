@@ -2,6 +2,9 @@ export type RMAType = 'refund' | 'exchange' | 'repair';
 export type RMAStatus = 'pending' | 'approved' | 'shipped' | 'received' | 'inspected' | 'processed' | 'closed';
 export type ItemCondition = 'good' | 'damaged' | 'missing' | 'wrong_item';
 export type DisposalResult = 'restock' | 'repair' | 'destroy' | 'return_to_supplier' | 'liquidate';
+export type ReturnOrder = RMA;
+export type QualityCheck = RMAItem;
+export type Disposition = DisposalResult;
 
 export const RMA_TYPE_NAMES: Record<RMAType, string> = {
   refund: '退款',
@@ -41,6 +44,8 @@ export interface RMA {
   orderNo: string;
   platformOrderNo: string;
   platform: string;
+  warehouseId?: string;
+  warehouseName?: string;
   type: RMAType;
   typeName: string;
   status: RMAStatus;
@@ -52,10 +57,14 @@ export interface RMA {
   buyerPhone?: string;
   returnTrackingNo?: string;
   returnLogistics?: string;
+  trackingNo?: string;
+  logisticsProvider?: string;
   refundAmount?: number;
   currency: string;
   items: RMAItem[];
+  notes?: string;
   createdAt: string;
+  updatedAt?: string;
   approvedAt?: string;
   approvedBy?: string;
   approvedByName?: string;
@@ -68,9 +77,11 @@ export interface RMA {
   processedAt?: string;
   processedBy?: string;
   processedByName?: string;
+  completedAt?: string;
   closedAt?: string;
   closedBy?: string;
   closedByName?: string;
+  [key: string]: any;
 }
 
 export interface RMAItem {

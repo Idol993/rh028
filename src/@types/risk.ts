@@ -1,6 +1,7 @@
 export type RiskLevel = 'low' | 'medium' | 'high';
 export type ReviewDecision = 'approve' | 'reject' | 'hold';
 export type BlacklistType = 'buyer' | 'ip' | 'address' | 'email' | 'phone';
+export type Blacklist = BlacklistItem;
 
 export const RISK_LEVEL_NAMES: Record<RiskLevel, string> = {
   low: '低风险',
@@ -54,14 +55,17 @@ export interface RiskFactor {
 export interface RiskRule {
   id: string;
   name: string;
-  code: string;
+  code?: string;
+  ruleCode?: string;
   description: string;
   category: 'fraud' | 'address' | 'payment' | 'product' | 'behavior';
+  ruleType?: string;
   condition: RiskRuleCondition;
   action: 'flag' | 'hold' | 'reject';
   riskScore: number;
   isEnabled: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface RiskRuleCondition {
@@ -83,6 +87,7 @@ export interface BlacklistItem {
   lastHitAt?: string;
   expiresAt?: string;
   createdAt: string;
+  addedAt?: string;
 }
 
 export interface BlacklistQueryParams {
@@ -135,3 +140,5 @@ export interface RiskRuleUpdateRequest {
   riskScore: number;
   isEnabled: boolean;
 }
+
+export type RiskStats = RiskDashboardData;

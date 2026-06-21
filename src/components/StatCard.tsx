@@ -11,6 +11,8 @@ interface StatCardProps {
   trendLabel?: string;
   color?: 'primary' | 'success' | 'warning' | 'danger' | 'secondary';
   className?: string;
+  onClick?: () => void;
+  clickable?: boolean;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -22,6 +24,8 @@ export const StatCard: React.FC<StatCardProps> = ({
   trendLabel,
   color = 'primary',
   className,
+  onClick,
+  clickable,
 }) => {
   const colorClasses = {
     primary: 'from-primary-600/20 to-primary-600/5 border-primary-500/30',
@@ -39,12 +43,18 @@ export const StatCard: React.FC<StatCardProps> = ({
     secondary: 'text-secondary-400 bg-secondary-500/20',
   };
 
+  const isClickable = clickable || !!onClick;
+
   return (
-    <div className={cn(
-      'rounded-xl p-5 border bg-gradient-to-br card-hover',
-      colorClasses[color],
-      className
-    )}>
+    <div
+      onClick={isClickable ? onClick : undefined}
+      className={cn(
+        'rounded-xl p-5 border bg-gradient-to-br card-hover',
+        colorClasses[color],
+        isClickable && 'cursor-pointer hover:shadow-lg hover:shadow-primary-500/10 hover:scale-[1.02] transition-all',
+        className
+      )}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm text-dark-400 mb-2">{title}</p>

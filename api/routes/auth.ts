@@ -100,6 +100,8 @@ const mockUsers: User[] = [
 
 const DEFAULT_PASSWORD = '123456'
 
+const tokenUserMap: Map<string, User> = new Map()
+
 const generateToken = (): string => {
   return 'token_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 }
@@ -155,6 +157,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     mockUsers.push(newUser)
 
     const token = generateToken()
+    tokenUserMap.set(token, newUser)
 
     res.status(200).json(
       successResponse(
@@ -203,6 +206,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     }
 
     const token = generateToken()
+    tokenUserMap.set(token, user)
 
     user.lastLoginAt = new Date().toISOString()
 
@@ -225,6 +229,11 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
  */
 router.post('/logout', async (req: Request, res: Response): Promise<void> => {
   try {
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      tokenUserMap.delete(token)
+    }
     res.status(200).json(successResponse(null, '登出成功'))
   } catch (error) {
     console.error('Logout error:', error)
@@ -252,10 +261,10 @@ router.get('/me', async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    const user = mockUsers[0]
+    const user = tokenUserMap.get(token)
 
     if (!user) {
-      res.status(401).json(errorResponse(401, '用户不存在'))
+      res.status(401).json(errorResponse(401, '登录已过期，请重新登录'))
       return
     }
 

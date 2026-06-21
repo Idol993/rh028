@@ -21,17 +21,21 @@ export interface Role {
   name: string;
   code: string;
   description: string;
-  permissions: Permission[];
+  permissions: Array<Permission | string>;
   createdAt: string;
 }
 
 export interface Permission {
   id: string;
   name: string;
-  code: string;
+  code?: string;
   module: string;
   description: string;
+  displayName?: string;
+  [key: string]: any;
 }
+
+export type PermissionCode = string;
 
 export interface OperationLog {
   id: string;
@@ -41,7 +45,8 @@ export interface OperationLog {
   action: string;
   targetType?: string;
   targetId?: string;
-  detail: Record<string, any>;
+  detail: Record<string, any> | string;
+  ip?: string;
   ipAddress?: string;
   userAgent?: string;
   createdAt: string;

@@ -269,3 +269,89 @@ export const generateVoucher = async (costDetailId: string): Promise<ApiResponse
     voucherUrl: `https://api.example.com/vouchers/${costDetailId}.pdf`,
   }, 500);
 };
+
+export const calculateOrderProfit = async (orderId: string): Promise<ApiResponse<{
+  orderId: string;
+  orderNo: string;
+  platform: string;
+  revenue: {
+    orderAmount: number;
+    shippingFee: number;
+    discount: number;
+    totalRevenue: number;
+  };
+  cost: {
+    productCost: number;
+    firstMileShippingCost: number;
+    lastMileShippingCost: number;
+    warehouseFee: number;
+    platformCommission: number;
+    transactionFee: number;
+    promotionCost: number;
+    refundLoss: number;
+    taxCost: number;
+    otherCost: number;
+    totalCost: number;
+  };
+  profit: number;
+  profitMargin: number;
+  costBreakdown: CostDetailItem[];
+}>> => {
+  const orderRevenue = parseFloat((Math.random() * 200 + 50).toFixed(2));
+  const productCost = parseFloat((orderRevenue * (0.3 + Math.random() * 0.2)).toFixed(2));
+  const firstMileShippingCost = parseFloat((orderRevenue * (0.05 + Math.random() * 0.05)).toFixed(2));
+  const lastMileShippingCost = parseFloat((orderRevenue * (0.1 + Math.random() * 0.1)).toFixed(2));
+  const warehouseFee = parseFloat((orderRevenue * (0.03 + Math.random() * 0.02)).toFixed(2));
+  const platformCommission = parseFloat((orderRevenue * (0.08 + Math.random() * 0.05)).toFixed(2));
+  const transactionFee = parseFloat((orderRevenue * (0.02 + Math.random() * 0.02)).toFixed(2));
+  const promotionCost = parseFloat((orderRevenue * (0.03 + Math.random() * 0.03)).toFixed(2));
+  const refundLoss = parseFloat((Math.random() > 0.8 ? orderRevenue * 0.1 : 0).toFixed(2));
+  const taxCost = parseFloat((orderRevenue * (0.05 + Math.random() * 0.03)).toFixed(2));
+  const otherCost = parseFloat((Math.random() * 5).toFixed(2));
+  
+  const totalCost = productCost + firstMileShippingCost + lastMileShippingCost + warehouseFee + platformCommission + transactionFee + promotionCost + refundLoss + taxCost + otherCost;
+  const shippingFee = parseFloat((Math.random() * 10 + 5).toFixed(2));
+  const discount = parseFloat((Math.random() * 10).toFixed(2));
+  const totalRevenue = orderRevenue + shippingFee - discount;
+  const profit = totalRevenue - totalCost;
+  
+  return mockRequest({
+    orderId,
+    orderNo: `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`,
+    platform: randomFromArray(['amazon', 'shopify', 'temu', 'tiktok', 'ebay']),
+    revenue: {
+      orderAmount: orderRevenue,
+      shippingFee,
+      discount,
+      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+    },
+    cost: {
+      productCost,
+      firstMileShippingCost,
+      lastMileShippingCost,
+      warehouseFee,
+      platformCommission,
+      transactionFee,
+      promotionCost,
+      refundLoss,
+      taxCost,
+      otherCost,
+      totalCost: parseFloat(totalCost.toFixed(2)),
+    },
+    profit: parseFloat(profit.toFixed(2)),
+    profitMargin: parseFloat(((profit / totalRevenue) * 100).toFixed(2)),
+    costBreakdown: [
+      { category: '商品成本', amount: productCost, percentage: parseFloat(((productCost / totalCost) * 100).toFixed(2)) },
+      { category: '头程运费', amount: firstMileShippingCost, percentage: parseFloat(((firstMileShippingCost / totalCost) * 100).toFixed(2)) },
+      { category: '尾程运费', amount: lastMileShippingCost, percentage: parseFloat(((lastMileShippingCost / totalCost) * 100).toFixed(2)) },
+      { category: '仓储费', amount: warehouseFee, percentage: parseFloat(((warehouseFee / totalCost) * 100).toFixed(2)) },
+      { category: '平台佣金', amount: platformCommission, percentage: parseFloat(((platformCommission / totalCost) * 100).toFixed(2)) },
+      { category: '交易手续费', amount: transactionFee, percentage: parseFloat(((transactionFee / totalCost) * 100).toFixed(2)) },
+      { category: '推广费', amount: promotionCost, percentage: parseFloat(((promotionCost / totalCost) * 100).toFixed(2)) },
+      { category: '退款损失', amount: refundLoss, percentage: parseFloat(((refundLoss / totalCost) * 100).toFixed(2)) },
+      { category: '税费', amount: taxCost, percentage: parseFloat(((taxCost / totalCost) * 100).toFixed(2)) },
+    ],
+  }, 800);
+};
+
+const randomFromArray = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];

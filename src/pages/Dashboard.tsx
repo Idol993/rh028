@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShoppingCart,
   DollarSign,
@@ -14,6 +15,11 @@ import {
   PieChart,
   RefreshCw,
   Filter,
+  AlertCircle,
+  PackageCheck,
+  PackageX,
+  Boxes,
+  AlertOctagon,
 } from 'lucide-react';
 import * as echarts from 'echarts';
 import { PageHeader, StatCard, ChartCard, StatusBadge, PlatformBadge, Loading, Empty } from '@/components';
@@ -38,16 +44,19 @@ interface DashboardData {
 }
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
   const orderTrendChartRef = useRef<HTMLDivElement>(null);
   const platformChartRef = useRef<HTMLDivElement>(null);
   const warehouseChartRef = useRef<HTMLDivElement>(null);
   const logisticsChartRef = useRef<HTMLDivElement>(null);
+  const profitTrendChartRef = useRef<HTMLDivElement>(null);
   const orderTrendChartInstance = useRef<echarts.ECharts | null>(null);
   const platformChartInstance = useRef<echarts.ECharts | null>(null);
   const warehouseChartInstance = useRef<echarts.ECharts | null>(null);
   const logisticsChartInstance = useRef<echarts.ECharts | null>(null);
+  const profitTrendChartInstance = useRef<echarts.ECharts | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -452,7 +461,7 @@ export const Dashboard: React.FC = () => {
       />
 
       {/* Key Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           title="今日订单"
           value={formatNumber(orderStats.todayOrders)}
@@ -461,49 +470,95 @@ export const Dashboard: React.FC = () => {
           trend={12.5}
           trendLabel="较昨日"
           color="primary"
+          onClick={() => navigate('/orders')}
         />
         <StatCard
-          title="今日销售额"
-          value={formatCurrency(financeStats.todayRevenue || 15680)}
-          icon={<DollarSign className="w-6 h-6" />}
-          trend={8.3}
-          trendLabel="较昨日"
-          color="success"
-        />
-        <StatCard
-          title="今日发货"
-          value={formatNumber(orderStats.todayShipped)}
+          title="待审风险单"
+          value={formatNumber(orderStats.riskReview)}
           unit="单"
-          icon={<Package className="w-6 h-6" />}
-          trend={-2.1}
+          icon={<ShieldAlert className="w-6 h-6" />}
+          trend={-5.2}
+          trendLabel="较昨日"
+          color="danger"
+          onClick={() => navigate('/risk?reviewStatus=pending_review')}
+        />
+        <StatCard
+          title="待拣货"
+          value={formatNumber(orderStats.picking + orderStats.allocated)}
+          unit="单"
+          icon={<Boxes className="w-6 h-6" />}
+          trend={3.8}
           trendLabel="较昨日"
           color="warning"
+          onClick={() => navigate('/orders?fulfillmentStatus=picking')}
         />
         <StatCard
-          title="发货及时率"
-          value={formatPercent(logisticsStats.onTimeRate || 96.8)}
-          icon={<Zap className="w-6 h-6" />}
-          trend={1.2}
-          trendLabel="较上周"
+          title="待打包"
+          value={formatNumber(orderStats.packing)}
+          unit="单"
+          icon={<PackageCheck className="w-6 h-6" />}
+          trend={1.5}
+          trendLabel="较昨日"
+          color="warning"
+          onClick={() => navigate('/orders?fulfillmentStatus=packing')}
+        />
+        <StatCard
+          title="在途包裹"
+          value={formatNumber(logisticsStats.inTransit || 2368)}
+          unit="件"
+          icon={<Truck className="w-6 h-6" />}
+          trend={6.7}
+          trendLabel="较昨日"
           color="secondary"
+          onClick={() => navigate('/logistics?status=in_transit')}
+        />
+        <StatCard
+          title="异常包裹"
+          value={formatNumber(logisticsStats.exceptions || 42)}
+          unit="件"
+          icon={<AlertOctagon className="w-6 h-6" />}
+          trend={-12.3}
+          trendLabel="较昨日"
+          color="danger"
+          onClick={() => navigate('/logistics?status=exception')}
+        />
+        <StatCard
+          title="库存预警"
+          value={formatNumber(inventoryStats.lowStockCount + (inventoryStats.outOfStockCount || 0))}
+          unit="SKU"
+          icon={<AlertCircle className="w-6 h-6" />}
+          trend={4.1}
+          trendLabel="较昨日"
+          color="warning"
+          onClick={() => navigate('/inventory?alert=low')}
+        />
+        <StatCard
+          title="今日利润"
+          value={formatCurrency(financeStats.todayProfit || 4268)}
+          icon={<TrendingUp className="w-6 h-6" />}
+          trend={9.4}
+          trendLabel="较昨日"
+          color="success"
+          onClick={() => navigate('/finance/profit')}
         />
       </div>
 
       {/* Order Status Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {[
-          { label: '待审核', value: orderStats.pending, color: 'warning' as const, icon: <Clock className="w-4 h-4" /> },
-          { label: '风控审核', value: orderStats.riskReview, color: 'danger' as const, icon: <ShieldAlert className="w-4 h-4" /> },
-          { label: '已分仓', value: orderStats.allocated, color: 'secondary' as const, icon: <Package className="w-4 h-4" /> },
-          { label: '拣货中', value: orderStats.picking, color: 'secondary' as const, icon: <Package className="w-4 h-4" /> },
-          { label: '打包中', value: orderStats.packing, color: 'secondary' as const, icon: <Package className="w-4 h-4" /> },
-          { label: '已发货', value: orderStats.shipped, color: 'success' as const, icon: <Truck className="w-4 h-4" /> },
-          { label: '已退货', value: orderStats.returned, color: 'default' as const, icon: <RotateCcw className="w-4 h-4" /> },
-          { label: '已取消', value: orderStats.cancelled, color: 'danger' as const, icon: <AlertTriangle className="w-4 h-4" /> },
+          { label: '待审核', value: orderStats.pending, color: 'warning' as const, icon: <Clock className="w-4 h-4" />, path: '/orders?status=pending' },
+          { label: '风控审核', value: orderStats.riskReview, color: 'danger' as const, icon: <ShieldAlert className="w-4 h-4" />, path: '/risk?reviewStatus=pending_review' },
+          { label: '已分仓', value: orderStats.allocated, color: 'secondary' as const, icon: <Package className="w-4 h-4" />, path: '/orders?fulfillmentStatus=allocated' },
+          { label: '拣货中', value: orderStats.picking, color: 'secondary' as const, icon: <Package className="w-4 h-4" />, path: '/orders?fulfillmentStatus=picking' },
+          { label: '打包中', value: orderStats.packing, color: 'secondary' as const, icon: <Package className="w-4 h-4" />, path: '/orders?fulfillmentStatus=packing' },
+          { label: '已发货', value: orderStats.shipped, color: 'success' as const, icon: <Truck className="w-4 h-4" />, path: '/orders?fulfillmentStatus=shipped' },
+          { label: '已退货', value: orderStats.returned, color: 'default' as const, icon: <RotateCcw className="w-4 h-4" />, path: '/rma' },
+          { label: '已取消', value: orderStats.cancelled, color: 'danger' as const, icon: <AlertTriangle className="w-4 h-4" />, path: '/orders?status=cancelled' },
         ].map((item, index) => (
           <div
             key={index}
-            className="bg-dark-800/50 border border-dark-700 rounded-xl p-4 card-hover"
+            onClick={() => navigate(item.path)}
+            className="bg-dark-800/50 border border-dark-700 rounded-xl p-4 card-hover cursor-pointer hover:shadow-lg hover:shadow-primary-500/10 hover:scale-[1.02] transition-all"
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-dark-400">{item.label}</span>

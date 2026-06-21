@@ -155,3 +155,110 @@ export const getOrderStats = async (): Promise<ApiResponse<{
     todayShipped: Math.floor(Math.random() * 150) + 30,
   });
 };
+
+export const createPickingTask = async (orderId: string): Promise<ApiResponse<{
+  taskId: string;
+  taskNo: string;
+  warehouseId: string;
+  warehouseName: string;
+  assigneeId: string;
+  assigneeName: string;
+  items: Array<{
+    sku: string;
+    productName: string;
+    quantity: number;
+    location: string;
+  }>;
+  priority: number;
+  createdAt: string;
+}>> => {
+  const order = mockOrders.find(o => o.id === orderId) || mockOrders[0];
+  return mockRequest({
+    taskId: 'task_' + Math.random().toString(36).substr(2, 9),
+    taskNo: `PT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`,
+    warehouseId: order.warehouseId,
+    warehouseName: order.warehouseName,
+    assigneeId: 'user-003',
+    assigneeName: '仓管员小张',
+    items: order.items.map(item => ({
+      sku: item.sku,
+      productName: item.productName,
+      quantity: item.quantity,
+      location: item.warehouseLocation || `A-${String(Math.floor(Math.random() * 20) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 50) + 1).padStart(2, '0')}`,
+    })),
+    priority: 2,
+    createdAt: new Date().toISOString(),
+  }, 500);
+};
+
+export const completePicking = async (orderId: string, taskId: string): Promise<ApiResponse<null>> => {
+  const order = mockOrders.find(o => o.id === orderId);
+  if (order) {
+    order.status = 'packing';
+  }
+  return mockRequest(null, 500);
+};
+
+export const completePacking = async (orderId: string, data: {
+  weight: number;
+  length: number;
+  width: number;
+  height: number;
+  boxNo?: string;
+}): Promise<ApiResponse<{
+  packageId: string;
+  weight: number;
+  volumeWeight: number;
+  chargeWeight: number;
+  boxNo: string;
+  packedAt: string;
+}>> => {
+  const order = mockOrders.find(o => o.id === orderId);
+  if (order) {
+    order.status = 'packing';
+  }
+  const volumeWeight = (data.length * data.width * data.height) / 5000;
+  const chargeWeight = Math.max(data.weight, volumeWeight);
+  return mockRequest({
+    packageId: 'pkg_' + Math.random().toString(36).substr(2, 9),
+    weight: data.weight,
+    volumeWeight: parseFloat(volumeWeight.toFixed(2)),
+    chargeWeight: parseFloat(chargeWeight.toFixed(2)),
+    boxNo: data.boxNo || `BOX-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`,
+    packedAt: new Date().toISOString(),
+  }, 500);
+};
+
+export const generateShippingLabel = async (orderId: string, logisticsChannelId: string): Promise<ApiResponse<{
+  trackingNo: string;
+  logisticsProvider: string;
+  logisticsService: string;
+  estimatedDeliveryDays: number;
+  shippingCost: number;
+  labelUrl: string;
+  labelPdfUrl: string;
+  trackingUrl: string;
+  createdAt: string;
+}>> => {
+  const order = mockOrders.find(o => o.id === orderId);
+  if (order) {
+    order.status = 'shipped';
+    order.trackingNo = `TRK${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    order.shippedAt = new Date().toISOString();
+  }
+  const providers = ['UPS', 'FedEx', 'DHL', 'USPS', 'Royal Mail'];
+  const provider = randomFromArray(providers);
+  return mockRequest({
+    trackingNo: order?.trackingNo || `TRK${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    logisticsProvider: provider,
+    logisticsService: provider + ' Standard',
+    estimatedDeliveryDays: Math.floor(Math.random() * 5) + 5,
+    shippingCost: parseFloat((Math.random() * 20 + 5).toFixed(2)),
+    labelUrl: '/mock/label/' + Math.random().toString(36).substr(2, 9),
+    labelPdfUrl: '/mock/label/' + Math.random().toString(36).substr(2, 9) + '.pdf',
+    trackingUrl: `https://track.example.com/${provider}/track?no=${order?.trackingNo}`,
+    createdAt: new Date().toISOString(),
+  }, 800);
+};
+
+const randomFromArray = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];

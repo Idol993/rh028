@@ -1,6 +1,6 @@
 export type ProfitDimension = 'order' | 'sku' | 'store' | 'platform' | 'warehouse' | 'country' | 'category' | 'monthly';
 export type ExpenseType = 'product_cost' | 'first_mile_shipping' | 'warehouse_storage' | 'last_mile_shipping' | 'platform_commission' | 'transaction_fee' | 'promotion' | 'tax' | 'packaging' | 'return' | 'other';
-export type ExpenseCategory = 'direct_cost' | 'operating_cost' | 'marketing_cost' | 'logistics_cost' | 'tax_cost';
+export type ExpenseCategory = 'direct_cost' | 'operating_cost' | 'marketing_cost' | 'logistics_cost' | 'tax_cost' | string;
 export type ExpenseStatus = 'pending' | 'approved' | 'paid' | 'rejected';
 export type TransactionType = 'income' | 'expense' | 'transfer' | 'refund';
 export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
@@ -54,17 +54,35 @@ export interface OrderCostDetail {
 export interface ProfitReport {
   id: string;
   reportNo?: string;
-  dimension: ProfitDimension;
+  dimension?: ProfitDimension;
   period?: string;
+  periodName?: string;
   platform?: string;
+  platformName?: string;
   storeId?: string;
+  storeName?: string;
   warehouseId?: string;
+  warehouseName?: string;
   startDate: string;
   endDate: string;
-  summary: ProfitSummary;
-  details: ProfitDetailItem[];
-  trendData: ProfitTrendPoint[];
+  summary?: ProfitSummary;
+  details?: ProfitDetailItem[];
+  trendData?: ProfitTrendPoint[];
+  orderCount?: number;
+  shippedCount?: number;
+  returnedCount?: number;
+  cancelledCount?: number;
+  totalRevenue?: number;
+  totalCost?: number;
+  totalProfit?: number;
+  profitMargin?: number;
+  avgOrderValue?: number;
+  avgProfitPerOrder?: number;
+  costBreakdown?: CostBreakdown;
+  currency?: string;
+  generatedBy?: string;
   createdAt: string;
+  [key: string]: any;
 }
 
 export interface ProfitSummary {
@@ -100,12 +118,15 @@ export interface Expense {
   id: string;
   expenseNo?: string;
   type: ExpenseType;
-  typeName: string;
+  typeName?: string;
   category: ExpenseCategory;
-  categoryName: string;
+  categoryName?: string;
+  subcategory?: string;
   status: ExpenseStatus;
   amount: number;
   currency: string;
+  exchangeRate?: number;
+  cnyAmount?: number;
   orderId?: string;
   orderNo?: string;
   sku?: string;
@@ -113,12 +134,21 @@ export interface Expense {
   warehouseId?: string;
   warehouseName?: string;
   storeId?: string;
+  storeName?: string;
+  supplier?: string;
+  invoiceNo?: string;
+  isReimbursable?: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  paidAt?: string;
+  remarks?: string;
   platform?: string;
   description: string;
-  incurredAt: string;
+  incurredAt?: string;
   createdBy: string;
-  createdByName: string;
+  createdByName?: string;
   createdAt: string;
+  [key: string]: any;
 }
 
 export interface ExpenseCreateRequest {
