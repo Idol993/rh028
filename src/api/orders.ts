@@ -1,8 +1,8 @@
 import type { ApiResponse } from '@/@types/api';
 import type { Order, OrderDetail, OrderQueryParams, OrderCreateRequest, AllocationResult, OrderAuditRequest } from '@/@types/order';
-import type { Shipment, TrackingRecord } from '@/@types/logistics';
+import type { Shipment, TrackingRecord, LogisticsChannel } from '@/@types/logistics';
 import { mockRequest, mockPageRequest } from './client';
-import { mockOrders, generateOrder, generateRiskAssessment, generateFulfillmentOrder, generateUUID } from '@/mock/data';
+import { mockOrders, generateOrder, generateRiskAssessment, generateFulfillmentOrder, generateUUID, mockLogisticsChannels } from '@/mock/data';
 import { registerShipment } from './logistics';
 
 const orderUpdates = new Map<string, Partial<Order>>();
@@ -10,7 +10,7 @@ const pickingTasks = new Map<string, any>();
 const packingRecords = new Map<string, any>();
 const shippingLabels = new Map<string, any>();
 
-const getUpdatedOrder = (order: Order): Order => {
+export const getUpdatedOrder = (order: Order): Order => {
   const updates = orderUpdates.get(order.id);
   if (updates) {
     return { ...order, ...updates };
@@ -91,11 +91,40 @@ export const getOrderDetail = async (id: string): Promise<ApiResponse<OrderDetai
     },
   ];
   
+  const pickingTask = Array.from(pickingTasks.values()).find(t => t.orderId === id);
+  const packingRecord = packingRecords.get(id);
+  const shippingLabel = shippingLabels.get(id);
+  
+  if (packingRecord) {
+    operationLogs.push({
+      id: generateUUID(),
+      userId: 'user-003',
+      userName: '仓管员小张',
+      action: '打包称重',
+      detail: `包裹重量 ${packingRecord.weight}kg，尺寸 ${packingRecord.length}x${packingRecord.width}x${packingRecord.height}cm，箱号 ${packingRecord.boxNo || '-'}`,
+      createdAt: packingRecord.packedAt,
+    });
+  }
+  
+  if (shippingLabel) {
+    operationLogs.push({
+      id: generateUUID(),
+      userId: 'user-003',
+      userName: '仓管员小张',
+      action: '生成面单',
+      detail: `${shippingLabel.logisticsProvider} ${shippingLabel.logisticsService}，追踪号 ${shippingLabel.trackingNo}，运费 $${shippingLabel.shippingCost}`,
+      createdAt: shippingLabel.createdAt,
+    });
+  }
+  
   return mockRequest({
     ...order,
     riskAssessment,
     fulfillmentOrder,
     operationLogs,
+    pickingTask,
+    packingRecord,
+    shippingLabel,
   });
 };
 
@@ -155,20 +184,22 @@ export const getOrderStats = async (): Promise<ApiResponse<{
   todayOrders: number;
   todayShipped: number;
 }>> => {
+  const updatedOrders = mockOrders.map(getUpdatedOrder);
+  const today = new Date().toISOString().slice(0, 10);
   return mockRequest({
-    total: mockOrders.length,
-    pending: mockOrders.filter(o => o.status === 'pending').length,
-    riskReview: mockOrders.filter(o => o.status === 'risk_review').length,
-    allocated: mockOrders.filter(o => o.status === 'allocated').length,
-    picking: mockOrders.filter(o => o.status === 'picking').length,
-    packing: mockOrders.filter(o => o.status === 'packing').length,
-    shipped: mockOrders.filter(o => o.status === 'shipped').length,
-    delivered: mockOrders.filter(o => o.status === 'delivered').length,
-    cancelled: mockOrders.filter(o => o.status === 'cancelled').length,
-    returned: mockOrders.filter(o => o.status === 'returned').length,
-    todayOrders: Math.floor(Math.random() * 200) + 50,
-    todayShipped: Math.floor(Math.random() * 150) + 30,
-  });
+    total: updatedOrders.length,
+    pending: updatedOrders.filter(o => o.status === 'pending').length,
+    riskReview: updatedOrders.filter(o => o.status === 'risk_review').length,
+    allocated: updatedOrders.filter(o => o.status === 'allocated').length,
+    picking: updatedOrders.filter(o => o.status === 'picking').length,
+    packing: updatedOrders.filter(o => o.status === 'packing').length,
+    shipped: updatedOrders.filter(o => o.status === 'shipped').length,
+    delivered: updatedOrders.filter(o => o.status === 'delivered').length,
+    cancelled: updatedOrders.filter(o => o.status === 'cancelled').length,
+    returned: updatedOrders.filter(o => o.status === 'returned').length,
+    todayOrders: updatedOrders.filter(o => (o.createdAt || '').slice(0, 10) === today).length + 37,
+    todayShipped: updatedOrders.filter(o => o.status === 'shipped' && (o.shippedAt || '').slice(0, 10) >= today).length + 12,
+  }, 400);
 };
 
 export const allocateWarehouse = async (orderId: string, warehouseId?: string): Promise<ApiResponse<AllocationResult>> => {
@@ -337,7 +368,7 @@ export const generateShippingLabel = async (orderId: string, logisticsChannelId:
   logisticsProvider: string;
   logisticsService: string;
   logisticsId: string;
-  estimatedDeliveryDays: number;
+  estimatedDeliveryDays: number | { min: number; max: number };
   shippingCost: number;
   labelUrl: string;
   labelPdfUrl: string;
@@ -345,28 +376,43 @@ export const generateShippingLabel = async (orderId: string, logisticsChannelId:
   createdAt: string;
 }>> => {
   const order = getUpdatedOrder(mockOrders.find(o => o.id === orderId) || mockOrders[0]);
+  const channel = mockLogisticsChannels.find(c => c.id === logisticsChannelId) || mockLogisticsChannels[0];
   
-  const providers = [
-    { id: 'ups', name: 'UPS', service: 'UPS Standard' },
-    { id: 'fedex', name: 'FedEx', service: 'FedEx Ground' },
-    { id: 'dhl', name: 'DHL', service: 'DHL eCommerce' },
-    { id: 'usps', name: 'USPS', service: 'USPS Priority' },
-  ];
+  const packingRecord = packingRecords.get(orderId);
+  const packageWeight = packingRecord?.chargeWeight || packingRecord?.weight || order.actualWeight || order.estimatedWeight || 1.5;
   
-  const provider = providers[Math.floor(Math.random() * providers.length)];
-  const trackingNo = `${provider.id.toUpperCase()}${Date.now()}${Math.floor(Math.random() * 10000)}`;
+  const baseCost = (channel as any).baseCost || 5.99;
+  const costPerKg = (channel as any).costPerKg || 2.5;
+  const shippingCost = parseFloat((baseCost + costPerKg * packageWeight).toFixed(2));
+  
+  const edd = channel.estimatedDeliveryDays as any;
+  const estimatedDeliveryDays: number | { min: number; max: number } =
+    typeof edd === 'number' ? edd : (edd || { min: 5, max: 10 });
+  
+  const carrierName = channel.carrierName || channel.carrier || 'Unknown';
+  const serviceTypeMap: Record<string, string> = {
+    standard: '标准快递',
+    express: '优先快递',
+    priority: '特快专递',
+    economy: '经济快递',
+  };
+  const serviceType = channel.serviceType as string || 'standard';
+  const serviceDisplayName = (channel as any).channelName || (channel as any).serviceName || `${carrierName} ${serviceTypeMap[serviceType] || serviceType}`;
+  
+  const carrierCode = (channel.carrier || 'generic').toString().toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 4).toUpperCase() || 'TRK';
+  const trackingNo = `${carrierCode}${Date.now()}${Math.floor(Math.random() * 10000)}`;
   const now = new Date();
   
   const label = {
     trackingNo,
-    logisticsProvider: provider.name,
-    logisticsService: provider.service,
+    logisticsProvider: carrierName,
+    logisticsService: serviceDisplayName,
     logisticsId: logisticsChannelId,
-    estimatedDeliveryDays: 3 + Math.floor(Math.random() * 7),
-    shippingCost: parseFloat((Math.random() * 20 + 5).toFixed(2)),
+    estimatedDeliveryDays,
+    shippingCost,
     labelUrl: '/mock/label/' + Math.random().toString(36).substr(2, 9),
     labelPdfUrl: '/mock/label/' + Math.random().toString(36).substr(2, 9) + '.pdf',
-    trackingUrl: `https://track.example.com/${provider.id}/track?no=${trackingNo}`,
+    trackingUrl: `https://track.example.com/${channel.carrier || 'carrier'}/track?no=${trackingNo}`,
     createdAt: now.toISOString(),
   };
   
@@ -378,10 +424,12 @@ export const generateShippingLabel = async (orderId: string, logisticsChannelId:
     status: 'shipped',
     trackingNo,
     logisticsId: logisticsChannelId,
-    logisticsName: provider.name,
-    shippingCost: label.shippingCost,
+    logisticsName: carrierName,
+    shippingCost,
     shippedAt: now.toISOString(),
   });
+  
+  const eddNum = typeof estimatedDeliveryDays === 'number' ? estimatedDeliveryDays : ((estimatedDeliveryDays as any).min + (estimatedDeliveryDays as any).max) / 2;
   
   const shipment: Shipment = {
     id: 'shp_' + Math.random().toString(36).substr(2, 9),
@@ -391,13 +439,17 @@ export const generateShippingLabel = async (orderId: string, logisticsChannelId:
     platformOrderNo: order.platformOrderNo,
     warehouseId: order.warehouseId || 'wh-001',
     warehouseName: order.warehouseName || '洛杉矶海外仓',
-    carrier: provider.name,
-    serviceName: provider.service,
+    logisticsId: logisticsChannelId,
+    logisticsName: carrierName,
+    carrier: channel.carrier || carrierName,
+    carrierName,
+    serviceName: serviceDisplayName,
     trackingNo,
     status: 'shipped',
-    weight: order.actualWeight || order.estimatedWeight || 1.5,
-    shippingCost: label.shippingCost,
-    estimatedDeliveryDays: label.estimatedDeliveryDays,
+    statusName: '已发货',
+    weight: packageWeight,
+    shippingCost,
+    estimatedDeliveryDays: Math.round(eddNum),
     destinationCountry: order.country || 'US',
     trackingHistory: [],
     createdAt: now.toISOString(),
@@ -408,42 +460,50 @@ export const generateShippingLabel = async (orderId: string, logisticsChannelId:
     {
       id: generateUUID(),
       trackingNo,
+      statusCode: 'created',
       status: 'created',
       statusName: '已创建',
       location: order.warehouseName || '洛杉矶海外仓',
       description: '物流订单已创建',
       timestamp: new Date(now.getTime() - 3600000).toISOString(),
       operator: '系统',
+      courier: carrierName,
     },
     {
       id: generateUUID(),
       trackingNo,
+      statusCode: 'label_created',
       status: 'label_created',
       statusName: '面单已生成',
       location: order.warehouseName || '洛杉矶海外仓',
-      description: '面单已生成，等待揽收',
+      description: `通过 ${serviceDisplayName} 生成面单，运费 $${shippingCost}`,
       timestamp: new Date(now.getTime() - 1800000).toISOString(),
       operator: '系统',
+      courier: carrierName,
     },
     {
       id: generateUUID(),
       trackingNo,
+      statusCode: 'picked_up',
       status: 'picked_up',
       statusName: '已揽收',
       location: order.warehouseName || '洛杉矶海外仓',
-      description: '快递员已揽收包裹',
+      description: `${carrierName} 快递员已揽收包裹`,
       timestamp: now.toISOString(),
-      operator: provider.name,
+      operator: carrierName,
+      courier: carrierName,
     },
     {
       id: generateUUID(),
       trackingNo,
+      statusCode: 'in_transit',
       status: 'in_transit',
       statusName: '运输中',
       location: '转运中心',
-      description: '包裹已到达转运中心，正在分拣',
+      description: '包裹已到达转运中心，正在分拣，预计 ' + (typeof estimatedDeliveryDays === 'number' ? `${estimatedDeliveryDays}天` : `${estimatedDeliveryDays.min}-${estimatedDeliveryDays.max}天`) + ' 送达',
       timestamp: new Date(now.getTime() + 3600000).toISOString(),
-      operator: provider.name,
+      operator: carrierName,
+      courier: carrierName,
     },
   ];
   

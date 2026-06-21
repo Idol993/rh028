@@ -1,7 +1,9 @@
 import type { ApiResponse } from '@/@types/api';
 import type { CostDetail, CostDetailItem, ProfitReport, Expense, FinanceStats, Transaction } from '@/@types/finance';
+import type { Order } from '@/@types/order';
 import { mockRequest, mockPageRequest } from './client';
 import { mockCostDetails, mockProfitReports, mockExpenses, mockTransactions, mockFinanceStats, mockOrders } from '@/mock/data';
+import { getUpdatedOrder } from './orders';
 
 const orderProfitCache = new Map<string, any>();
 
@@ -69,112 +71,219 @@ export const getCostDetail = async (id: string): Promise<ApiResponse<CostDetail>
   return mockRequest(detail);
 };
 
-export const getProfitReports = async (params: { 
-  page?: number; 
-  pageSize?: number; 
-  period?: string; 
-  platform?: string; 
+const calculateOrderMetrics = (order: Order) => {
+  const orderAmount = order.totalAmount || 0;
+  const shippingFee = order.shippingFee || 0;
+  const revenue = orderAmount + shippingFee;
+
+  const productCostRate = 0.35 + seededRandom(`${order.id}_prod_cost`) * 0.15;
+  const productCost = orderAmount * productCostRate;
+  const firstMileShippingCost = orderAmount * 0.06;
+  const lastMileShippingCost = orderAmount * 0.08;
+  const shippingCost = firstMileShippingCost + lastMileShippingCost;
+  const platformFee = orderAmount * 0.1;
+  const marketingCost = orderAmount * 0.05;
+  const warehouseFee = orderAmount * 0.03;
+  const transactionFee = orderAmount * 0.025;
+  const otherCost = orderAmount * 0.015;
+
+  const hasRefund = seededRandom(`${order.id}_refund`) > 0.85;
+  const refundLoss = hasRefund ? orderAmount * 0.15 : 0;
+
+  const totalCost = productCost + shippingCost + platformFee + marketingCost + warehouseFee + transactionFee + otherCost + refundLoss;
+  const profit = revenue - totalCost;
+
+  return {
+    revenue: parseFloat(revenue.toFixed(2)),
+    productCost: parseFloat(productCost.toFixed(2)),
+    firstMileShippingCost: parseFloat(firstMileShippingCost.toFixed(2)),
+    lastMileShippingCost: parseFloat(lastMileShippingCost.toFixed(2)),
+    shippingCost: parseFloat(shippingCost.toFixed(2)),
+    platformFee: parseFloat(platformFee.toFixed(2)),
+    marketingCost: parseFloat(marketingCost.toFixed(2)),
+    warehouseFee: parseFloat(warehouseFee.toFixed(2)),
+    transactionFee: parseFloat(transactionFee.toFixed(2)),
+    otherCost: parseFloat(otherCost.toFixed(2)),
+    refundLoss: parseFloat(refundLoss.toFixed(2)),
+    totalCost: parseFloat(totalCost.toFixed(2)),
+    profit: parseFloat(profit.toFixed(2)),
+  };
+};
+
+const aggregateOrders = (orders: Order[]) => {
+  const orderCount = orders.length;
+  let totalRevenue = 0;
+  let totalProductCost = 0;
+  let totalFirstMile = 0;
+  let totalLastMile = 0;
+  let totalShippingCost = 0;
+  let totalPlatformFee = 0;
+  let totalMarketingCost = 0;
+  let totalWarehouseFee = 0;
+  let totalTransactionFee = 0;
+  let totalOtherCost = 0;
+  let totalRefundLoss = 0;
+  let totalCost = 0;
+  let totalProfit = 0;
+  let shippedCount = 0;
+  let returnedCount = 0;
+  let cancelledCount = 0;
+
+  orders.forEach(order => {
+    const m = calculateOrderMetrics(order);
+    totalRevenue += m.revenue;
+    totalProductCost += m.productCost;
+    totalFirstMile += m.firstMileShippingCost;
+    totalLastMile += m.lastMileShippingCost;
+    totalShippingCost += m.shippingCost;
+    totalPlatformFee += m.platformFee;
+    totalMarketingCost += m.marketingCost;
+    totalWarehouseFee += m.warehouseFee;
+    totalTransactionFee += m.transactionFee;
+    totalOtherCost += m.otherCost;
+    totalRefundLoss += m.refundLoss;
+    totalCost += m.totalCost;
+    totalProfit += m.profit;
+
+    if (order.status === 'shipped' || order.status === 'delivered') shippedCount++;
+    if (order.status === 'returned') returnedCount++;
+    if (order.status === 'cancelled') cancelledCount++;
+  });
+
+  totalRevenue = parseFloat(totalRevenue.toFixed(2));
+  totalProductCost = parseFloat(totalProductCost.toFixed(2));
+  totalFirstMile = parseFloat(totalFirstMile.toFixed(2));
+  totalLastMile = parseFloat(totalLastMile.toFixed(2));
+  totalShippingCost = parseFloat(totalShippingCost.toFixed(2));
+  totalPlatformFee = parseFloat(totalPlatformFee.toFixed(2));
+  totalMarketingCost = parseFloat(totalMarketingCost.toFixed(2));
+  totalWarehouseFee = parseFloat(totalWarehouseFee.toFixed(2));
+  totalTransactionFee = parseFloat(totalTransactionFee.toFixed(2));
+  totalOtherCost = parseFloat(totalOtherCost.toFixed(2));
+  totalRefundLoss = parseFloat(totalRefundLoss.toFixed(2));
+  totalCost = parseFloat(totalCost.toFixed(2));
+  totalProfit = parseFloat(totalProfit.toFixed(2));
+
+  const profitMargin = totalRevenue > 0 ? parseFloat(((totalProfit / totalRevenue) * 100).toFixed(2)) : 0;
+  const avgOrderValue = orderCount > 0 ? parseFloat((totalRevenue / orderCount).toFixed(2)) : 0;
+  const avgProfitPerOrder = orderCount > 0 ? parseFloat((totalProfit / orderCount).toFixed(2)) : 0;
+
+  return {
+    orderCount,
+    shippedCount,
+    returnedCount,
+    cancelledCount,
+    totalRevenue,
+    totalProductCost,
+    totalFirstMile,
+    totalLastMile,
+    totalShippingCost,
+    totalPlatformFee,
+    totalMarketingCost,
+    totalWarehouseFee,
+    totalTransactionFee,
+    totalOtherCost,
+    totalRefundLoss,
+    totalCost,
+    totalProfit,
+    profitMargin,
+    avgOrderValue,
+    avgProfitPerOrder,
+  };
+};
+
+export const getProfitReports = async (params: {
+  page?: number;
+  pageSize?: number;
+  period?: string;
+  platform?: string;
   storeId?: string;
   warehouseId?: string;
   startDate?: string;
   endDate?: string;
-}): Promise<ApiResponse<{ list: ProfitReport[]; total: number; page: number; pageSize: number }>> => {
-  const allOrders = mockOrders.filter(o => {
-    if (params.platform && o.platform !== params.platform) return false;
-    if (params.storeId && o.storeId !== params.storeId) return false;
-    if (params.startDate && o.createdAt < params.startDate) return false;
-    if (params.endDate && o.createdAt > params.endDate) return false;
-    return true;
-  });
-  
-  const groups: Array<{ key: string; platform: string; platformName: string; storeId: string; storeName: string; warehouseId?: string; warehouseName?: string; orders: typeof allOrders }> = [];
-  
+}): Promise<ApiResponse<{
+  list: ProfitReport[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: {
+    orderCount: number;
+    shippedCount: number;
+    returnedCount: number;
+    cancelledCount: number;
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+    profitMargin: number;
+    avgOrderValue: number;
+  };
+}>> => {
+  const allOrders = mockOrders
+    .map(getUpdatedOrder)
+    .filter(o => {
+      if (params.platform && o.platform !== params.platform) return false;
+      if (params.storeId && o.storeId !== params.storeId) return false;
+      if (params.warehouseId && o.warehouseId !== params.warehouseId) return false;
+      if (params.startDate && o.createdAt < params.startDate) return false;
+      if (params.endDate && o.createdAt > params.endDate) return false;
+      return true;
+    });
+
   const platformNames: Record<string, string> = {
     amazon: 'Amazon',
     shopify: 'Shopify',
     temu: 'Temu',
     tiktok: 'TikTok Shop',
     ebay: 'eBay',
+    walmart: 'Walmart',
+    shein: 'SHEIN',
   };
-  
-  const byPlatform = new Map<string, typeof allOrders>();
+
+  const groupByPlatform = !params.platform;
+  const groupByStore = !params.storeId;
+  const groupByWarehouse = !params.warehouseId;
+
+  const groups = new Map<string, {
+    platform: string;
+    platformName: string;
+    storeId: string;
+    storeName: string;
+    warehouseId: string;
+    warehouseName: string;
+    orders: Order[];
+  }>();
+
   allOrders.forEach(order => {
-    const key = order.platform;
-    if (!byPlatform.has(key)) byPlatform.set(key, []);
-    byPlatform.get(key)!.push(order);
-  });
-  
-  byPlatform.forEach((orders, platform) => {
-    const byStore = new Map<string, typeof allOrders>();
-    orders.forEach(order => {
-      const key = order.storeId;
-      if (!byStore.has(key)) byStore.set(key, []);
-      byStore.get(key)!.push(order);
-    });
-    
-    byStore.forEach((storeOrders, storeId) => {
-      const storeName = storeOrders[0]?.storeName || storeId;
-      groups.push({
-        key: `${platform}_${storeId}`,
-        platform,
-        platformName: platformNames[platform] || platform,
-        storeId,
-        storeName,
-        warehouseId: undefined,
-        warehouseName: undefined,
-        orders: storeOrders,
+    const p = groupByPlatform ? order.platform : (params.platform || 'all');
+    const s = groupByStore ? order.storeId : (params.storeId || 'all');
+    const w = groupByWarehouse ? (order.warehouseId || 'unknown') : (params.warehouseId || 'all');
+    const key = `${p}__${s}__${w}`;
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        platform: p,
+        platformName: platformNames[p] || (params.platform ? platformNames[params.platform] || params.platform : '全部平台'),
+        storeId: s,
+        storeName: order.storeName || (params.storeId ? params.storeId : '全部店铺'),
+        warehouseId: w,
+        warehouseName: order.warehouseName || (params.warehouseId ? `仓库${params.warehouseId}` : '全部仓库'),
+        orders: [],
       });
-    });
+    }
+    groups.get(key)!.orders.push(order);
   });
-  
-  const reports = groups.map((group, index) => {
-    const orders = group.orders;
-    const orderCount = orders.length;
-    
-    let totalRevenue = 0;
-    let totalProductCost = 0;
-    let totalShippingCost = 0;
-    let totalPlatformFee = 0;
-    let totalMarketingCost = 0;
-    let totalWarehouseFee = 0;
-    let totalOtherCost = 0;
-    
-    orders.forEach(order => {
-      const orderAmount = order.totalAmount || 0;
-      const shippingFee = order.shippingFee || 0;
-      totalRevenue += orderAmount + shippingFee;
-      
-      const productCostRate = 0.35 + seededRandom(`${order.id}_prod_cost`) * 0.15;
-      totalProductCost += orderAmount * productCostRate;
-      
-      totalShippingCost += orderAmount * 0.12;
-      totalPlatformFee += orderAmount * 0.1;
-      totalMarketingCost += orderAmount * 0.05;
-      totalWarehouseFee += orderAmount * 0.03;
-      totalOtherCost += orderAmount * 0.02;
-    });
-    
-    totalRevenue = parseFloat(totalRevenue.toFixed(2));
-    totalProductCost = parseFloat(totalProductCost.toFixed(2));
-    totalShippingCost = parseFloat(totalShippingCost.toFixed(2));
-    totalPlatformFee = parseFloat(totalPlatformFee.toFixed(2));
-    totalMarketingCost = parseFloat(totalMarketingCost.toFixed(2));
-    totalWarehouseFee = parseFloat(totalWarehouseFee.toFixed(2));
-    totalOtherCost = parseFloat(totalOtherCost.toFixed(2));
-    
-    const totalCost = parseFloat((totalProductCost + totalShippingCost + totalPlatformFee + totalMarketingCost + totalWarehouseFee + totalOtherCost).toFixed(2));
-    const totalProfit = parseFloat((totalRevenue - totalCost).toFixed(2));
-    const profitMargin = parseFloat(((totalProfit / totalRevenue) * 100).toFixed(2));
-    
-    const period = params.period || 'month';
-    const periodNames: Record<string, string> = { day: '日报', week: '周报', month: '月报', quarter: '季报', year: '年报' };
-    
+
+  const period = params.period || 'month';
+  const periodNames: Record<string, string> = { day: '日报', week: '周报', month: '月报', quarter: '季报', year: '年报' };
+
+  const reports = Array.from(groups.entries()).map(([key, group], index) => {
+    const agg = aggregateOrders(group.orders);
     return {
-      id: `report_${group.key}`,
+      id: `report_${key}`,
       reportNo: `RPT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(index + 1).padStart(3, '0')}`,
       period,
       periodName: periodNames[period] || '月报',
-      startDate: params.startDate || orders[0]?.createdAt || new Date().toISOString(),
+      startDate: params.startDate || group.orders[0]?.createdAt || new Date().toISOString(),
       endDate: params.endDate || new Date().toISOString(),
       platform: group.platform,
       platformName: group.platformName,
@@ -182,36 +291,61 @@ export const getProfitReports = async (params: {
       storeName: group.storeName,
       warehouseId: group.warehouseId,
       warehouseName: group.warehouseName,
-      orderCount,
-      totalRevenue,
-      totalCost,
-      totalProfit,
-      profitMargin,
-      averageOrderValue: orderCount > 0 ? parseFloat((totalRevenue / orderCount).toFixed(2)) : 0,
-      productCost: totalProductCost,
-      shippingCost: totalShippingCost,
-      platformFee: totalPlatformFee,
-      marketingCost: totalMarketingCost,
-      warehouseFee: totalWarehouseFee,
-      otherCost: totalOtherCost,
-      refundAmount: 0,
-      refundRate: 0,
+      orderCount: agg.orderCount,
+      shippedCount: agg.shippedCount,
+      returnedCount: agg.returnedCount,
+      cancelledCount: agg.cancelledCount,
+      totalRevenue: agg.totalRevenue,
+      totalCost: agg.totalCost,
+      totalProfit: agg.totalProfit,
+      profitMargin: agg.profitMargin,
+      averageOrderValue: agg.avgOrderValue,
+      avgOrderValue: agg.avgOrderValue,
+      avgProfitPerOrder: agg.avgProfitPerOrder,
+      productCost: agg.totalProductCost,
+      firstMileShippingCost: agg.totalFirstMile,
+      lastMileShippingCost: agg.totalLastMile,
+      shippingCost: agg.totalShippingCost,
+      platformFee: agg.totalPlatformFee,
+      marketingCost: agg.totalMarketingCost,
+      warehouseFee: agg.totalWarehouseFee,
+      transactionFee: agg.totalTransactionFee,
+      refundAmount: agg.totalRefundLoss,
+      otherCost: agg.totalOtherCost,
+      refundRate: agg.orderCount > 0 ? parseFloat(((agg.returnedCount / agg.orderCount) * 100).toFixed(2)) : 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: 'completed',
+      currency: 'USD',
     } as ProfitReport;
   });
-  
-  if (params.warehouseId) {
-    reports.forEach(r => {
-      r.warehouseId = params.warehouseId;
-      r.warehouseName = `仓库${params.warehouseId}`;
-    });
-  }
-  
-  const sortedReports = reports.sort((a, b) => b.totalRevenue - a.totalRevenue);
-  
-  return mockPageRequest(sortedReports, params.page, params.pageSize);
+
+  const sortedReports = reports.sort((a, b) => (b.totalRevenue || 0) - (a.totalRevenue || 0));
+
+  const overall = aggregateOrders(allOrders);
+
+  const page = params.page || 1;
+  const pageSize = params.pageSize || 20;
+  const start = (page - 1) * pageSize;
+  const pagedList = sortedReports.slice(start, start + pageSize);
+
+  return mockRequest({
+    list: pagedList,
+    total: sortedReports.length,
+    page,
+    pageSize,
+    summary: {
+      orderCount: overall.orderCount,
+      shippedCount: overall.shippedCount,
+      returnedCount: overall.returnedCount,
+      cancelledCount: overall.cancelledCount,
+      totalRevenue: overall.totalRevenue,
+      totalCost: overall.totalCost,
+      totalProfit: overall.totalProfit,
+      profitMargin: overall.profitMargin,
+      avgOrderValue: overall.avgOrderValue,
+    },
+  }, 500);
 };
 
 export const getProfitReportDetail = async (id: string): Promise<ApiResponse<ProfitReport>> => {
@@ -344,7 +478,55 @@ export const getTransactions = async (params: {
 };
 
 export const getFinanceStats = async (): Promise<ApiResponse<FinanceStats>> => {
-  return mockRequest(mockFinanceStats);
+  const updatedOrders = mockOrders.map(getUpdatedOrder);
+  const agg = aggregateOrders(updatedOrders);
+  
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
+  
+  const thisMonthOrders = updatedOrders.filter(o => o.createdAt >= startOfMonth);
+  const lastMonthOrders = updatedOrders.filter(o => o.createdAt >= startOfLastMonth && o.createdAt <= endOfLastMonth);
+  
+  const thisMonth = aggregateOrders(thisMonthOrders);
+  const lastMonth = aggregateOrders(lastMonthOrders);
+  
+  const revenueGrowth = lastMonth.totalRevenue > 0
+    ? parseFloat((((thisMonth.totalRevenue - lastMonth.totalRevenue) / lastMonth.totalRevenue) * 100).toFixed(2))
+    : 12.5;
+  
+  const profitGrowth = lastMonth.totalProfit > 0
+    ? parseFloat((((thisMonth.totalProfit - lastMonth.totalProfit) / lastMonth.totalProfit) * 100).toFixed(2))
+    : 8.3;
+
+  return mockRequest({
+    totalRevenue: agg.totalRevenue,
+    totalCost: agg.totalCost,
+    totalProfit: agg.totalProfit,
+    totalOrders: agg.orderCount,
+    profitMargin: agg.profitMargin,
+    avgOrderValue: agg.avgOrderValue,
+    revenueGrowth,
+    profitGrowth,
+    pendingSettlement: parseFloat((agg.totalRevenue * 0.3).toFixed(2)),
+    settledAmount: parseFloat((agg.totalRevenue * 0.7).toFixed(2)),
+    refundAmount: agg.totalRefundLoss,
+    platformFee: agg.totalPlatformFee,
+    shippingCost: agg.totalShippingCost,
+    productCost: agg.totalProductCost,
+    warehouseFee: agg.totalWarehouseFee,
+    marketingCost: agg.totalMarketingCost,
+    monthlyTrend: Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const base = 50000 + i * 8000;
+      return {
+        month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        revenue: parseFloat((base + seededRandom(`rev_${i}`) * 20000).toFixed(2)),
+        profit: parseFloat((base * 0.32 + seededRandom(`prof_${i}`) * 5000).toFixed(2)),
+      };
+    }),
+  } as FinanceStats, 400);
 };
 
 export const reconcile = async (params: {

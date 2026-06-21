@@ -106,20 +106,26 @@ export const getShipments = async (params: {
   }
   if (params.keyword) {
     const kw = params.keyword.toLowerCase();
-    filtered = filtered.filter(s => 
-      s.trackingNo.toLowerCase().includes(kw) ||
-      s.orderNo.toLowerCase().includes(kw) ||
-      s.recipientName.toLowerCase().includes(kw)
+    filtered = filtered.filter(s =>
+      (s.trackingNo && s.trackingNo.toLowerCase().includes(kw)) ||
+      (s.orderNo && s.orderNo.toLowerCase().includes(kw)) ||
+      (s.platformOrderNo && s.platformOrderNo.toLowerCase().includes(kw)) ||
+      (s.shipmentNo && s.shipmentNo.toLowerCase().includes(kw)) ||
+      (s.recipientName && s.recipientName.toLowerCase().includes(kw))
     );
   }
   
-  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   
   return mockPageRequest(filtered, params.page, params.pageSize);
 };
 
 export const getShipmentDetail = async (id: string): Promise<ApiResponse<Shipment>> => {
-  const shipment = getAllShipments().find(s => s.id === id) || getAllShipments()[0];
+  const all = getAllShipments();
+  const shipment = all.find(s => s.id === id) || all.find(s => s.trackingNo === id) || all.find(s => s.orderNo === id) || all[0];
+  if (shipment && dynamicTrackingRecords.has(shipment.trackingNo)) {
+    shipment.trackingHistory = dynamicTrackingRecords.get(shipment.trackingNo);
+  }
   return mockRequest(shipment);
 };
 
@@ -195,7 +201,59 @@ export const batchTrackShipments = async (trackingNos: string[]): Promise<ApiRes
 };
 
 export const getLogisticsStats = async (): Promise<ApiResponse<LogisticsStats>> => {
-  return mockRequest(mockLogisticsStats);
+  const allShipments = getAllShipments();
+  const total = allShipments.length;
+  
+  const today = new Date().toISOString().slice(0, 10);
+  const shippedToday = allShipments.filter(s => (s.shippedAt || s.createdAt || '').slice(0, 10) === today).length;
+  const delivered = allShipments.filter(s => s.status === 'delivered').length;
+  const inTransit = allShipments.filter(s => s.status === 'in_transit' || s.status === 'shipped').length;
+  const pending = allShipments.filter(s => s.status === 'created' || s.status === 'label_printed' || s.status === 'picked_up').length;
+  const exception = allShipments.filter(s => s.status === 'exception').length;
+  const returned = allShipments.filter(s => s.status === 'returned').length;
+  const totalShippingCost = allShipments.reduce((sum, s) => sum + (s.shippingCost || 0), 0);
+  
+  const carrierMap = new Map<string, { count: number; cost: number }>();
+  allShipments.forEach(s => {
+    const c = s.carrier || 'Unknown';
+    if (!carrierMap.has(c)) carrierMap.set(c, { count: 0, cost: 0 });
+    const entry = carrierMap.get(c)!;
+    entry.count++;
+    entry.cost += s.shippingCost || 0;
+  });
+  
+  const topCarriers = Array.from(carrierMap.entries())
+    .map(([carrier, data]) => ({ carrier, count: data.count, cost: parseFloat(data.cost.toFixed(2)) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  return mockRequest({
+    totalShipments: total,
+    delivered,
+    inTransit,
+    pending,
+    exception,
+    exceptions: exception,
+    exceptionCount: exception,
+    returned,
+    onTimeRate: parseFloat(((delivered + inTransit) / Math.max(total, 1) * 95).toFixed(2)),
+    avgDeliveryTime: 7.2,
+    averageDeliveryDays: 7.2,
+    totalShippingCost: parseFloat(totalShippingCost.toFixed(2)),
+    avgShippingCost: parseFloat((totalShippingCost / Math.max(total, 1)).toFixed(2)),
+    exceptionRate: parseFloat((exception / Math.max(total, 1) * 100).toFixed(2)),
+    shippedToday,
+    deliveredToday: Math.floor(delivered * 0.08),
+    costThisMonth: parseFloat((totalShippingCost * 0.35).toFixed(2)),
+    topCarriers,
+    exceptionTypes: [
+      { type: 'customs_hold', count: Math.floor(exception * 0.4), percentage: 40 },
+      { type: 'address_issue', count: Math.floor(exception * 0.3), percentage: 30 },
+      { type: 'weather_delay', count: Math.floor(exception * 0.15), percentage: 15 },
+      { type: 'damaged', count: Math.floor(exception * 0.1), percentage: 10 },
+      { type: 'lost', count: Math.max(1, Math.floor(exception * 0.05)), percentage: 5 },
+    ],
+  } as LogisticsStats, 400);
 };
 
 export const calculateShippingCost = async (data: {
