@@ -1,0 +1,85 @@
+import axios from 'axios';
+import type { ApiResponse } from '@/@types/api';
+import { storage } from '@/utils/storage';
+
+const client = axios.create({
+  baseURL: '/api',
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+client.interceptors.request.use((config) => {
+  const token = storage.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+client.interceptors.response.use(
+  (response) => {
+    return response.data;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      storage.removeToken();
+      storage.removeUser();
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const mockRequest = async <T>(
+  mockData: T,
+  delay: number = 300,
+  shouldFail: boolean = false
+): Promise<ApiResponse<T>> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (shouldFail) {
+        reject({
+          code: 500,
+          message: '请求失败，请稍后重试',
+          data: null,
+        });
+      } else {
+        resolve({
+          code: 200,
+          message: 'success',
+          data: mockData,
+        });
+      }
+    }, delay);
+  });
+};
+
+export const mockPageRequest = async <T>(
+  data: T[],
+  page: number = 1,
+  pageSize: number = 20,
+  delay: number = 300
+): Promise<ApiResponse<{ list: T[]; total: number; page: number; pageSize: number }>> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const list = data.slice(start, end);
+      
+      resolve({
+        code: 200,
+        message: 'success',
+        data: {
+          list,
+          total: data.length,
+          page,
+          pageSize,
+        },
+      });
+    }, delay);
+  });
+};
+
+export default client;

@@ -1,0 +1,492 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1E3A8A;
+  --color-secondary: #0EA5E9;
+  --color-warning: #F97316;
+  --color-success: #10B981;
+  --color-danger: #EF4444;
+  --color-bg-dark: #0F172A;
+  --color-bg-card: #1E293B;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-border: #334155;
+  
+  --font-sans: 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-dark);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* 数字字体 */
+.font-numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 渐变背景 */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+}
+
+.bg-gradient-card {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+/* 玻璃态效果 */
+.glass {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* 发光效果 */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
+}
+
+.glow-danger {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.glow-success {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.glow-warning {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+}
+
+/* 呼吸灯动画 */
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-breathe {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+/* 闪烁动画 - 用于预警 */
+@keyframes flash {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.3; }
+}
+
+.animate-flash {
+  animation: flash 1s ease-in-out infinite;
+}
+
+/* 数字滚动动画 */
+@keyframes numberRoll {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.animate-number-roll {
+  animation: numberRoll 0.6s ease-out;
+}
+
+/* 卡片悬浮效果 */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+/* 按钮基础样式 */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center gap-2;
+}
+
+.btn-primary {
+  @apply bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 shadow-lg hover:shadow-glow;
+}
+
+.btn-secondary {
+  @apply bg-dark-700 text-white border border-dark-600 hover:bg-dark-600 hover:border-dark-500;
+}
+
+.btn-success {
+  @apply bg-gradient-to-r from-success-600 to-success-500 text-white hover:from-success-500 hover:to-success-400;
+}
+
+.btn-danger {
+  @apply bg-gradient-to-r from-danger-600 to-danger-500 text-white hover:from-danger-500 hover:to-danger-400;
+}
+
+.btn-warning {
+  @apply bg-gradient-to-r from-warning-600 to-warning-500 text-white hover:from-warning-500 hover:to-warning-400;
+}
+
+.btn:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* 输入框样式 */
+.input {
+  @apply w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-secondary-500 focus:ring-1 focus:ring-secondary-500 transition-all;
+}
+
+/* 表格样式 */
+.data-table {
+  @apply w-full border-collapse;
+}
+
+.data-table th {
+  @apply px-4 py-3 text-left text-sm font-medium text-dark-300 bg-dark-800 border-b border-dark-700;
+}
+
+.data-table td {
+  @apply px-4 py-3 text-sm border-b border-dark-700/50;
+}
+
+.data-table tr:hover td {
+  @apply bg-dark-800/50;
+}
+
+.data-table tr:nth-child(even) td {
+  @apply bg-dark-800/30;
+}
+
+/* 状态标签 */
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+}
+
+.status-pending {
+  @apply bg-warning-500/20 text-warning-400 border border-warning-500/30;
+}
+
+.status-processing {
+  @apply bg-secondary-500/20 text-secondary-400 border border-secondary-500/30;
+}
+
+.status-success {
+  @apply bg-success-500/20 text-success-400 border border-success-500/30;
+}
+
+.status-danger {
+  @apply bg-danger-500/20 text-danger-400 border border-danger-500/30;
+}
+
+.status-default {
+  @apply bg-dark-600/50 text-dark-300 border border-dark-600;
+}
+
+/* 平台标签 */
+.platform-badge {
+  @apply inline-flex items-center px-2 py-1 rounded text-xs font-medium;
+}
+
+.platform-amazon {
+  @apply bg-platform-amazon/20 text-platform-amazon border border-platform-amazon/30;
+}
+
+.platform-shopify {
+  @apply bg-platform-shopify/20 text-platform-shopify border border-platform-shopify/30;
+}
+
+.platform-temu {
+  @apply bg-platform-temu/20 text-platform-temu border border-platform-temu/30;
+}
+
+.platform-tiktok {
+  @apply bg-platform-tiktok/20 text-white border border-white/30;
+}
+
+.platform-ebay {
+  @apply bg-platform-ebay/20 text-platform-ebay border border-platform-ebay/30;
+}
+
+.platform-walmart {
+  @apply bg-platform-walmart/20 text-platform-walmart border border-platform-walmart/30;
+}
+
+.platform-shein {
+  @apply bg-platform-shein/20 text-platform-shein border border-platform-shein/30;
+}
+
+/* 风控级别 */
+.risk-low {
+  @apply bg-success-500/20 text-success-400;
+}
+
+.risk-medium {
+  @apply bg-warning-500/20 text-warning-400;
+}
+
+.risk-high {
+  @apply bg-danger-500/20 text-danger-400 animate-breathe;
+}
+
+/* 工具提示 */
+.tooltip {
+  @apply relative;
+}
+
+.tooltip::after {
+  content: attr(data-tip);
+  @apply absolute z-50 px-2 py-1 text-xs bg-dark-900 text-white rounded shadow-lg opacity-0 invisible transition-all duration-200 whitespace-nowrap;
+  @apply -top-8 left-1/2 -translate-x-1/2;
+}
+
+.tooltip:hover::after {
+  @apply opacity-100 visible;
+}
+
+/* 加载骨架屏 */
+.skeleton {
+  @apply animate-pulse bg-dark-700 rounded;
+}
+
+/* 震动效果 - 用于PDA扫码失败 */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* AntD 样式覆盖 */
+.ant-modal-content {
+  @apply bg-dark-800 border border-dark-700;
+}
+
+.ant-modal-header {
+  @apply bg-dark-800 border-b border-dark-700;
+}
+
+.ant-modal-title {
+  @apply text-white;
+}
+
+.ant-modal-body {
+  @apply text-dark-200;
+}
+
+.ant-modal-footer {
+  @apply border-t border-dark-700;
+}
+
+.ant-drawer-content {
+  @apply bg-dark-800;
+}
+
+.ant-drawer-header {
+  @apply bg-dark-800 border-b border-dark-700;
+}
+
+.ant-drawer-title {
+  @apply text-white;
+}
+
+.ant-drawer-body {
+  @apply bg-dark-800;
+}
+
+.ant-select-selector {
+  @apply !bg-dark-800 !border-dark-600 !text-white;
+}
+
+.ant-select-dropdown {
+  @apply !bg-dark-800 !border-dark-600;
+}
+
+.ant-select-item {
+  @apply !text-white hover:!bg-dark-700;
+}
+
+.ant-input {
+  @apply !bg-dark-800 !border-dark-600 !text-white;
+}
+
+.ant-input::placeholder {
+  @apply !text-dark-400;
+}
+
+.ant-picker {
+  @apply !bg-dark-800 !border-dark-600;
+}
+
+.ant-picker-input > input {
+  @apply !text-white;
+}
+
+.ant-table {
+  @apply !bg-dark-800;
+}
+
+.ant-table-thead > tr > th {
+  @apply !bg-dark-700 !text-dark-300 !border-dark-600;
+}
+
+.ant-table-tbody > tr > td {
+  @apply !border-dark-700;
+}
+
+.ant-table-tbody > tr:hover > td {
+  @apply !bg-dark-700/50;
+}
+
+.ant-table-row:nth-child(even) > td {
+  @apply !bg-dark-800/50;
+}
+
+.ant-pagination-item {
+  @apply !bg-dark-800 !border-dark-600;
+}
+
+.ant-pagination-item a {
+  @apply !text-white;
+}
+
+.ant-pagination-item-active {
+  @apply !bg-primary-600 !border-primary-500;
+}
+
+.ant-btn-primary {
+  @apply !bg-gradient-to-r !from-primary-600 !to-primary-500 !border-none hover:!from-primary-500 hover:!to-primary-400;
+}
+
+.ant-btn-default {
+  @apply !bg-dark-700 !text-white !border-dark-600 hover:!bg-dark-600 hover:!border-dark-500;
+}
+
+.ant-btn-dangerous {
+  @apply !bg-gradient-to-r !from-danger-600 !to-danger-500 !border-none;
+}
+
+.ant-tag {
+  @apply !border-none;
+}
+
+.ant-card {
+  @apply !bg-dark-800 !border-dark-700;
+}
+
+.ant-card-head {
+  @apply !border-dark-700;
+}
+
+.ant-card-head-title {
+  @apply !text-white;
+}
+
+.ant-tabs-nav {
+  @apply !border-dark-700;
+}
+
+.ant-tabs-tab {
+  @apply !text-dark-400 hover:!text-white;
+}
+
+.ant-tabs-tab-active {
+  @apply !text-secondary-400;
+}
+
+.ant-tabs-ink-bar {
+  @apply !bg-secondary-500;
+}
+
+.ant-tooltip-inner {
+  @apply !bg-dark-900 !text-white;
+}
+
+.ant-notification-notice {
+  @apply !bg-dark-800 !border-dark-700;
+}
+
+.ant-notification-notice-message {
+  @apply !text-white;
+}
+
+.ant-notification-notice-description {
+  @apply !text-dark-300;
+}
+
+.ant-alert {
+  @apply !border;
+}
+
+.ant-alert-info {
+  @apply !bg-secondary-500/10 !border-secondary-500/30;
+}
+
+.ant-alert-success {
+  @apply !bg-success-500/10 !border-success-500/30;
+}
+
+.ant-alert-warning {
+  @apply !bg-warning-500/10 !border-warning-500/30;
+}
+
+.ant-alert-error {
+  @apply !bg-danger-500/10 !border-danger-500/30;
+}
+
+/* 滚动容器 */
+.scroll-container {
+  @apply overflow-auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) rgba(30, 41, 59, 0.5);
+}
+
+/* 响应式隐藏 */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
