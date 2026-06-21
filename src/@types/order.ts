@@ -61,6 +61,7 @@ export interface Order {
   buyerEmail: string;
   buyerPhone?: string;
   shippingAddress: Address;
+  country?: string;
   items: OrderItem[];
   subtotal: number;
   shippingFee: number;
@@ -75,17 +76,22 @@ export interface Order {
   logisticsId?: string;
   logisticsName?: string;
   fulfillmentNo?: string;
+  fulfillmentStatus?: string;
   estimatedWeight?: number;
   actualWeight?: number;
+  shippingCost?: number;
   riskReviewedAt?: string;
   riskReviewerId?: string;
   riskReviewerName?: string;
   riskReviewRemark?: string;
   allocatedAt?: string;
+  pickedAt?: string;
+  packedAt?: string;
   shippedAt?: string;
   deliveredAt?: string;
   createdAt: string;
   updatedAt: string;
+  [key: string]: any;
 }
 
 export interface OrderDetail extends Order {
@@ -100,7 +106,7 @@ export interface RiskAssessment {
   riskLevel: RiskLevel;
   riskScore: number;
   riskFactors: RiskFactor[];
-  reviewStatus: 'pending' | 'approved' | 'rejected' | 'held';
+  reviewStatus: 'pending' | 'approved' | 'rejected' | 'held' | string;
   reviewerId?: string;
   reviewerName?: string;
   reviewRemark?: string;

@@ -1,6 +1,29 @@
 const STORAGE_PREFIX = 'cross_border_';
 
-export const storage = {
+interface StorageUtil {
+  get<T>(key: string, defaultValue?: T): T | null;
+  set<T>(key: string, value: T): void;
+  remove(key: string): void;
+  clear(): void;
+  getToken(): string | null;
+  setToken(token: string): void;
+  removeToken(): void;
+  getUser<T = any>(): T | null;
+  setUser<T = any>(user: T): void;
+  removeUser(): void;
+  getPermissions(): string[];
+  setPermissions(permissions: string[]): void;
+  removePermissions(): void;
+}
+
+interface SessionStorageUtil {
+  get<T>(key: string, defaultValue?: T): T | null;
+  set<T>(key: string, value: T): void;
+  remove(key: string): void;
+  clear(): void;
+}
+
+export const storage: StorageUtil = {
   get<T>(key: string, defaultValue?: T): T | null {
     try {
       const item = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
@@ -42,7 +65,7 @@ export const storage = {
   },
 
   getToken(): string | null {
-    return this.get<string>('token');
+    return (this as any).get('token') as string | null;
   },
 
   setToken(token: string): void {
@@ -53,11 +76,11 @@ export const storage = {
     this.remove('token');
   },
 
-  getUser<T>(): T | null {
-    return this.get<T>('user');
+  getUser<T = any>(): T | null {
+    return (this as any).get('user') as T | null;
   },
 
-  setUser<T>(user: T): void {
+  setUser<T = any>(user: T): void {
     this.set('user', user);
   },
 
@@ -66,7 +89,7 @@ export const storage = {
   },
 
   getPermissions(): string[] {
-    return this.get<string[]>('permissions') || [];
+    return ((this as any).get('permissions') as string[] | null) || [];
   },
 
   setPermissions(permissions: string[]): void {
@@ -78,7 +101,7 @@ export const storage = {
   },
 };
 
-export const sessionStorage = {
+export const sessionStorage: SessionStorageUtil = {
   get<T>(key: string, defaultValue?: T): T | null {
     try {
       const item = window.sessionStorage.getItem(`${STORAGE_PREFIX}${key}`);

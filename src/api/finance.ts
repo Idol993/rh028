@@ -1,7 +1,24 @@
 import type { ApiResponse } from '@/@types/api';
-import type { CostDetail, ProfitReport, Expense, FinanceStats, Transaction } from '@/@types/finance';
+import type { CostDetail, CostDetailItem, ProfitReport, Expense, FinanceStats, Transaction } from '@/@types/finance';
 import { mockRequest, mockPageRequest } from './client';
-import { mockCostDetails, mockProfitReports, mockExpenses, mockTransactions, mockFinanceStats } from '@/mock/data';
+import { mockCostDetails, mockProfitReports, mockExpenses, mockTransactions, mockFinanceStats, mockOrders } from '@/mock/data';
+
+const orderProfitCache = new Map<string, any>();
+
+const seededRandom = (seed: string): number => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const x = Math.sin(hash) * 10000;
+  return x - Math.floor(x);
+};
+
+const getDeterministicValue = (seed: string, min: number, max: number): number => {
+  return min + seededRandom(seed) * (max - min);
+};
 
 export const getCostDetails = async (params: { 
   page?: number; 
@@ -62,24 +79,139 @@ export const getProfitReports = async (params: {
   startDate?: string;
   endDate?: string;
 }): Promise<ApiResponse<{ list: ProfitReport[]; total: number; page: number; pageSize: number }>> => {
-  let filtered = [...mockProfitReports];
+  const allOrders = mockOrders.filter(o => {
+    if (params.platform && o.platform !== params.platform) return false;
+    if (params.storeId && o.storeId !== params.storeId) return false;
+    if (params.startDate && o.createdAt < params.startDate) return false;
+    if (params.endDate && o.createdAt > params.endDate) return false;
+    return true;
+  });
   
-  if (params.period) {
-    filtered = filtered.filter(r => r.period === params.period);
-  }
-  if (params.platform) {
-    filtered = filtered.filter(r => r.platform === params.platform);
-  }
-  if (params.storeId) {
-    filtered = filtered.filter(r => r.storeId === params.storeId);
-  }
+  const groups: Array<{ key: string; platform: string; platformName: string; storeId: string; storeName: string; warehouseId?: string; warehouseName?: string; orders: typeof allOrders }> = [];
+  
+  const platformNames: Record<string, string> = {
+    amazon: 'Amazon',
+    shopify: 'Shopify',
+    temu: 'Temu',
+    tiktok: 'TikTok Shop',
+    ebay: 'eBay',
+  };
+  
+  const byPlatform = new Map<string, typeof allOrders>();
+  allOrders.forEach(order => {
+    const key = order.platform;
+    if (!byPlatform.has(key)) byPlatform.set(key, []);
+    byPlatform.get(key)!.push(order);
+  });
+  
+  byPlatform.forEach((orders, platform) => {
+    const byStore = new Map<string, typeof allOrders>();
+    orders.forEach(order => {
+      const key = order.storeId;
+      if (!byStore.has(key)) byStore.set(key, []);
+      byStore.get(key)!.push(order);
+    });
+    
+    byStore.forEach((storeOrders, storeId) => {
+      const storeName = storeOrders[0]?.storeName || storeId;
+      groups.push({
+        key: `${platform}_${storeId}`,
+        platform,
+        platformName: platformNames[platform] || platform,
+        storeId,
+        storeName,
+        warehouseId: undefined,
+        warehouseName: undefined,
+        orders: storeOrders,
+      });
+    });
+  });
+  
+  const reports = groups.map((group, index) => {
+    const orders = group.orders;
+    const orderCount = orders.length;
+    
+    let totalRevenue = 0;
+    let totalProductCost = 0;
+    let totalShippingCost = 0;
+    let totalPlatformFee = 0;
+    let totalMarketingCost = 0;
+    let totalWarehouseFee = 0;
+    let totalOtherCost = 0;
+    
+    orders.forEach(order => {
+      const orderAmount = order.totalAmount || 0;
+      const shippingFee = order.shippingFee || 0;
+      totalRevenue += orderAmount + shippingFee;
+      
+      const productCostRate = 0.35 + seededRandom(`${order.id}_prod_cost`) * 0.15;
+      totalProductCost += orderAmount * productCostRate;
+      
+      totalShippingCost += orderAmount * 0.12;
+      totalPlatformFee += orderAmount * 0.1;
+      totalMarketingCost += orderAmount * 0.05;
+      totalWarehouseFee += orderAmount * 0.03;
+      totalOtherCost += orderAmount * 0.02;
+    });
+    
+    totalRevenue = parseFloat(totalRevenue.toFixed(2));
+    totalProductCost = parseFloat(totalProductCost.toFixed(2));
+    totalShippingCost = parseFloat(totalShippingCost.toFixed(2));
+    totalPlatformFee = parseFloat(totalPlatformFee.toFixed(2));
+    totalMarketingCost = parseFloat(totalMarketingCost.toFixed(2));
+    totalWarehouseFee = parseFloat(totalWarehouseFee.toFixed(2));
+    totalOtherCost = parseFloat(totalOtherCost.toFixed(2));
+    
+    const totalCost = parseFloat((totalProductCost + totalShippingCost + totalPlatformFee + totalMarketingCost + totalWarehouseFee + totalOtherCost).toFixed(2));
+    const totalProfit = parseFloat((totalRevenue - totalCost).toFixed(2));
+    const profitMargin = parseFloat(((totalProfit / totalRevenue) * 100).toFixed(2));
+    
+    const period = params.period || 'month';
+    const periodNames: Record<string, string> = { day: '日报', week: '周报', month: '月报', quarter: '季报', year: '年报' };
+    
+    return {
+      id: `report_${group.key}`,
+      reportNo: `RPT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(index + 1).padStart(3, '0')}`,
+      period,
+      periodName: periodNames[period] || '月报',
+      startDate: params.startDate || orders[0]?.createdAt || new Date().toISOString(),
+      endDate: params.endDate || new Date().toISOString(),
+      platform: group.platform,
+      platformName: group.platformName,
+      storeId: group.storeId,
+      storeName: group.storeName,
+      warehouseId: group.warehouseId,
+      warehouseName: group.warehouseName,
+      orderCount,
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      profitMargin,
+      averageOrderValue: orderCount > 0 ? parseFloat((totalRevenue / orderCount).toFixed(2)) : 0,
+      productCost: totalProductCost,
+      shippingCost: totalShippingCost,
+      platformFee: totalPlatformFee,
+      marketingCost: totalMarketingCost,
+      warehouseFee: totalWarehouseFee,
+      otherCost: totalOtherCost,
+      refundAmount: 0,
+      refundRate: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'completed',
+    } as ProfitReport;
+  });
+  
   if (params.warehouseId) {
-    filtered = filtered.filter(r => r.warehouseId === params.warehouseId);
+    reports.forEach(r => {
+      r.warehouseId = params.warehouseId;
+      r.warehouseName = `仓库${params.warehouseId}`;
+    });
   }
   
-  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedReports = reports.sort((a, b) => b.totalRevenue - a.totalRevenue);
   
-  return mockPageRequest(filtered, params.page, params.pageSize);
+  return mockPageRequest(sortedReports, params.page, params.pageSize);
 };
 
 export const getProfitReportDetail = async (id: string): Promise<ApiResponse<ProfitReport>> => {
@@ -295,35 +427,55 @@ export const calculateOrderProfit = async (orderId: string): Promise<ApiResponse
   };
   profit: number;
   profitMargin: number;
-  costBreakdown: CostDetailItem[];
+  costBreakdown: Array<{ category: string; amount: number; percentage: number }>;
 }>> => {
-  const orderRevenue = parseFloat((Math.random() * 200 + 50).toFixed(2));
-  const productCost = parseFloat((orderRevenue * (0.3 + Math.random() * 0.2)).toFixed(2));
-  const firstMileShippingCost = parseFloat((orderRevenue * (0.05 + Math.random() * 0.05)).toFixed(2));
-  const lastMileShippingCost = parseFloat((orderRevenue * (0.1 + Math.random() * 0.1)).toFixed(2));
-  const warehouseFee = parseFloat((orderRevenue * (0.03 + Math.random() * 0.02)).toFixed(2));
-  const platformCommission = parseFloat((orderRevenue * (0.08 + Math.random() * 0.05)).toFixed(2));
-  const transactionFee = parseFloat((orderRevenue * (0.02 + Math.random() * 0.02)).toFixed(2));
-  const promotionCost = parseFloat((orderRevenue * (0.03 + Math.random() * 0.03)).toFixed(2));
-  const refundLoss = parseFloat((Math.random() > 0.8 ? orderRevenue * 0.1 : 0).toFixed(2));
-  const taxCost = parseFloat((orderRevenue * (0.05 + Math.random() * 0.03)).toFixed(2));
-  const otherCost = parseFloat((Math.random() * 5).toFixed(2));
+  if (orderProfitCache.has(orderId)) {
+    return mockRequest(orderProfitCache.get(orderId), 300);
+  }
   
-  const totalCost = productCost + firstMileShippingCost + lastMileShippingCost + warehouseFee + platformCommission + transactionFee + promotionCost + refundLoss + taxCost + otherCost;
-  const shippingFee = parseFloat((Math.random() * 10 + 5).toFixed(2));
-  const discount = parseFloat((Math.random() * 10).toFixed(2));
-  const totalRevenue = orderRevenue + shippingFee - discount;
-  const profit = totalRevenue - totalCost;
+  const order = mockOrders.find(o => o.id === orderId) || mockOrders[0];
   
-  return mockRequest({
+  const orderAmount = order.totalAmount || getDeterministicValue(`${orderId}_revenue`, 50, 250);
+  const shippingFee = order.shippingFee || getDeterministicValue(`${orderId}_shipping`, 3, 15);
+  
+  const discountRate = getDeterministicValue(`${orderId}_discount`, 0, 0.1);
+  const discount = parseFloat((orderAmount * discountRate).toFixed(2));
+  const totalRevenue = parseFloat((orderAmount + shippingFee - discount).toFixed(2));
+  
+  const productCostRate = 0.3 + getDeterministicValue(`${orderId}_prod_cost`, 0, 0.2);
+  const productCost = parseFloat((orderAmount * productCostRate).toFixed(2));
+  
+  const firstMileShippingCost = parseFloat((orderAmount * (0.05 + getDeterministicValue(`${orderId}_first_mile`, 0, 0.05))).toFixed(2));
+  const lastMileShippingCost = parseFloat((orderAmount * (0.1 + getDeterministicValue(`${orderId}_last_mile`, 0, 0.1))).toFixed(2));
+  const warehouseFee = parseFloat((orderAmount * (0.03 + getDeterministicValue(`${orderId}_warehouse`, 0, 0.02))).toFixed(2));
+  const platformCommission = parseFloat((orderAmount * (0.08 + getDeterministicValue(`${orderId}_commission`, 0, 0.05))).toFixed(2));
+  const transactionFee = parseFloat((orderAmount * (0.02 + getDeterministicValue(`${orderId}_trans_fee`, 0, 0.02))).toFixed(2));
+  const promotionCost = parseFloat((orderAmount * (0.03 + getDeterministicValue(`${orderId}_promo`, 0, 0.03))).toFixed(2));
+  
+  const hasRefund = seededRandom(`${orderId}_refund`) > 0.8;
+  const refundLoss = hasRefund ? parseFloat((orderAmount * 0.1).toFixed(2)) : 0;
+  
+  const taxCost = parseFloat((orderAmount * (0.05 + getDeterministicValue(`${orderId}_tax`, 0, 0.03))).toFixed(2));
+  const otherCost = parseFloat((getDeterministicValue(`${orderId}_other`, 0, 5)).toFixed(2));
+  
+  const totalCost = parseFloat((
+    productCost + firstMileShippingCost + lastMileShippingCost + 
+    warehouseFee + platformCommission + transactionFee + 
+    promotionCost + refundLoss + taxCost + otherCost
+  ).toFixed(2));
+  
+  const profit = parseFloat((totalRevenue - totalCost).toFixed(2));
+  const profitMargin = parseFloat(((profit / totalRevenue) * 100).toFixed(2));
+  
+  const result = {
     orderId,
-    orderNo: `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`,
-    platform: randomFromArray(['amazon', 'shopify', 'temu', 'tiktok', 'ebay']),
+    orderNo: order.orderNo,
+    platform: order.platform,
     revenue: {
-      orderAmount: orderRevenue,
+      orderAmount,
       shippingFee,
       discount,
-      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+      totalRevenue,
     },
     cost: {
       productCost,
@@ -336,10 +488,10 @@ export const calculateOrderProfit = async (orderId: string): Promise<ApiResponse
       refundLoss,
       taxCost,
       otherCost,
-      totalCost: parseFloat(totalCost.toFixed(2)),
+      totalCost,
     },
-    profit: parseFloat(profit.toFixed(2)),
-    profitMargin: parseFloat(((profit / totalRevenue) * 100).toFixed(2)),
+    profit,
+    profitMargin,
     costBreakdown: [
       { category: '商品成本', amount: productCost, percentage: parseFloat(((productCost / totalCost) * 100).toFixed(2)) },
       { category: '头程运费', amount: firstMileShippingCost, percentage: parseFloat(((firstMileShippingCost / totalCost) * 100).toFixed(2)) },
@@ -351,7 +503,11 @@ export const calculateOrderProfit = async (orderId: string): Promise<ApiResponse
       { category: '退款损失', amount: refundLoss, percentage: parseFloat(((refundLoss / totalCost) * 100).toFixed(2)) },
       { category: '税费', amount: taxCost, percentage: parseFloat(((taxCost / totalCost) * 100).toFixed(2)) },
     ],
-  }, 800);
+  };
+  
+  orderProfitCache.set(orderId, result);
+  
+  return mockRequest(result, 800);
 };
 
 const randomFromArray = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];

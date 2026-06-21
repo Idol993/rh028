@@ -136,15 +136,19 @@ export interface PurchaseOrderItem {
 export interface InventoryAlert {
   id: string;
   type: 'low_stock' | 'overstock' | 'slow_moving' | 'expiring';
-  level: 'info' | 'warning' | 'danger';
+  level: 'info' | 'warning' | 'danger' | string;
+  riskLevel?: 'low' | 'medium' | 'high';
   sku: string;
   productName: string;
   warehouseId: string;
   warehouseName: string;
   currentQuantity: number;
+  currentQty?: number;
   threshold: number;
+  safetyStock?: number;
   message: string;
   createdAt: string;
+  [key: string]: any;
 }
 
 export interface InventoryStats {

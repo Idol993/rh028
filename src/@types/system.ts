@@ -19,10 +19,12 @@ export interface User {
 export interface Role {
   id: string;
   name: string;
-  code: string;
+  displayName?: string;
+  code?: string;
   description: string;
   permissions: Array<Permission | string>;
   createdAt: string;
+  [key: string]: any;
 }
 
 export interface Permission {

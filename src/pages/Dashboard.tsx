@@ -699,13 +699,13 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <p className="text-sm text-white truncate">{alert.productName}</p>
                     <p className="text-xs text-dark-400 mt-1">
-                      {alert.warehouseName} · 当前库存: {alert.currentQty} · 安全库存: {alert.safetyStock}
+                      {alert.warehouseName} · 当前库存: {alert.currentQty ?? alert.currentQuantity} · 安全库存: {alert.safetyStock ?? alert.threshold}
                     </p>
                   </div>
                   <AlertTriangle className={cn('w-4 h-4 flex-shrink-0 mt-1', {
-                    'text-danger-400': alert.level === 'high',
-                    'text-warning-400': alert.level === 'medium',
-                    'text-secondary-400': alert.level === 'low',
+                    'text-danger-400': (alert.level as string) === 'danger' || (alert.level as string) === 'high',
+                    'text-warning-400': (alert.level as string) === 'warning' || (alert.level as string) === 'medium',
+                    'text-secondary-400': (alert.level as string) === 'info' || (alert.level as string) === 'low',
                   })} />
                 </div>
               </div>

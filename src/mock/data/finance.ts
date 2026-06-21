@@ -139,12 +139,27 @@ export const generateProfitReport = (): ProfitReport => {
 };
 
 export const generateExpense = (): Expense => {
-  const categories = ['采购成本', '头程运费', '尾程运费', '仓储费', '平台佣金', '交易手续费', '推广费', '税费', '人工费', '办公费', '其他'];
+  const types: Array<{ type: string; typeName: string; categories: string[] }> = [
+    { type: 'product_cost', typeName: '商品成本', categories: ['采购成本'] },
+    { type: 'first_mile_shipping', typeName: '头程运费', categories: ['头程运费'] },
+    { type: 'last_mile_shipping', typeName: '尾程运费', categories: ['尾程运费'] },
+    { type: 'warehouse_storage', typeName: '仓储费', categories: ['仓储费'] },
+    { type: 'platform_commission', typeName: '平台佣金', categories: ['平台佣金'] },
+    { type: 'transaction_fee', typeName: '交易手续费', categories: ['交易手续费'] },
+    { type: 'promotion', typeName: '推广费', categories: ['推广费'] },
+    { type: 'tax', typeName: '税费', categories: ['税费'] },
+    { type: 'other', typeName: '其他', categories: ['人工费', '办公费', '其他'] },
+  ];
+  const typeItem = randomFromArray(types);
+  const category = randomFromArray(typeItem.categories);
   
   return {
     id: generateUUID(),
     expenseNo: `EXP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(randomInt(1, 9999)).padStart(4, '0')}`,
-    category: randomFromArray(categories),
+    type: typeItem.type as any,
+    typeName: typeItem.typeName,
+    category,
+    categoryName: category,
     subcategory: randomFromArray(['商品采购', '海运', '空运', '快递', '仓储租金', '操作费', 'Amazon佣金', 'PayPal手续费', 'Google Ads', 'Facebook Ads', '进口关税', '增值税']),
     description: randomFromArray(['商品采购订单', '国际海运费用', 'UPS快递运费', '仓库月租金', 'Amazon销售佣金', 'PayPal交易手续费', 'Google广告投放', '进口关税缴纳']),
     amount: randomFloat(10.0, 10000.0, 2),
@@ -160,7 +175,7 @@ export const generateExpense = (): Expense => {
     supplier: randomBoolean(0.4) ? randomFromArray(['深圳华强电子', '义乌小商品城', '广州白云皮具', '东莞制造有限公司']) : undefined,
     invoiceNo: randomBoolean(0.7) ? `INV-${randomInt(100000, 999999)}` : undefined,
     isReimbursable: randomBoolean(0.3),
-    status: randomFromArray(['pending', 'approved', 'paid', 'rejected']),
+    status: randomFromArray(['pending', 'approved', 'paid', 'rejected']) as any,
     approvedBy: randomBoolean(0.7) ? '财务总监王总' : undefined,
     approvedAt: randomBoolean(0.7) ? generatePastDate(randomInt(0, 30)) : undefined,
     paidAt: randomBoolean(0.5) ? generatePastDate(randomInt(0, 15)) : undefined,

@@ -1,10 +1,25 @@
 export type RMAType = 'refund' | 'exchange' | 'repair';
-export type RMAStatus = 'pending' | 'approved' | 'shipped' | 'received' | 'inspected' | 'processed' | 'closed';
-export type ItemCondition = 'good' | 'damaged' | 'missing' | 'wrong_item';
-export type DisposalResult = 'restock' | 'repair' | 'destroy' | 'return_to_supplier' | 'liquidate';
+export type RMAStatus = 'pending' | 'approved' | 'shipped' | 'received' | 'inspected' | 'processed' | 'closed' | 'rejected' | 'cancelled' | 'in_transit' | 'inspecting' | 'completed' | string;
+export type ItemCondition = 'good' | 'damaged' | 'missing' | 'wrong_item' | string;
+export type DisposalResult = 'restock' | 'repair' | 'destroy' | 'return_to_supplier' | 'liquidate' | string;
 export type ReturnOrder = RMA;
 export type QualityCheck = RMAItem;
-export type Disposition = DisposalResult;
+
+export interface Disposition {
+  id: string;
+  returnItemId?: string;
+  sku: string;
+  action: DisposalResult;
+  actionName: string;
+  reason: string;
+  estimatedValue?: number;
+  processedAt: string;
+  processedBy: string;
+  notes?: string;
+  [key: string]: any;
+}
+
+export type ReturnItem = RMAItem;
 
 export const RMA_TYPE_NAMES: Record<RMAType, string> = {
   refund: '退款',
@@ -46,11 +61,11 @@ export interface RMA {
   platform: string;
   warehouseId?: string;
   warehouseName?: string;
-  type: RMAType;
-  typeName: string;
+  type?: RMAType;
+  typeName?: string;
   status: RMAStatus;
-  statusName: string;
-  reason: string;
+  statusName?: string;
+  reason?: string;
   detailedReason?: string;
   buyerName: string;
   buyerEmail: string;
@@ -85,21 +100,26 @@ export interface RMA {
 }
 
 export interface RMAItem {
-  id: string;
-  rmaId: string;
-  orderItemId: string;
+  id?: string;
+  rmaId?: string;
+  orderItemId?: string;
+  returnItemId?: string;
   sku: string;
-  productName: string;
-  requestedQuantity: number;
-  receivedQuantity: number;
+  productName?: string;
+  requestedQuantity?: number;
+  quantity?: number;
+  receivedQuantity?: number;
   receivedCondition?: ItemCondition;
+  condition?: string;
   inspectionResult?: DisposalResult;
   inspectionRemark?: string;
-  processedQuantity: number;
+  processedQuantity?: number;
   disposalResult?: DisposalResult;
   disposalRemark?: string;
   refundAmount?: number;
   images?: string[];
+  returnReason?: string;
+  [key: string]: any;
 }
 
 export interface RMADetail extends RMA {

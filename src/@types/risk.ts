@@ -31,17 +31,21 @@ export interface RiskOrder {
   platform: string;
   buyerName: string;
   buyerEmail: string;
-  totalAmount: number;
-  currency: string;
+  buyerPhone?: string;
+  shippingAddress?: any;
+  totalAmount?: number;
+  amount?: number;
+  currency?: string;
   riskLevel: RiskLevel;
-  riskScore: number;
-  riskFactors: RiskFactor[];
-  reviewStatus: 'pending' | 'approved' | 'rejected' | 'held';
+  riskScore?: number;
+  riskFactors?: RiskFactor[];
+  reviewStatus: 'pending' | 'approved' | 'rejected' | 'held' | string;
   reviewerId?: string;
   reviewerName?: string;
   reviewRemark?: string;
   reviewedAt?: string;
   createdAt: string;
+  [key: string]: any;
 }
 
 export interface RiskFactor {
@@ -54,18 +58,23 @@ export interface RiskFactor {
 
 export interface RiskRule {
   id: string;
-  name: string;
+  name?: string;
+  ruleName?: string;
   code?: string;
   ruleCode?: string;
-  description: string;
-  category: 'fraud' | 'address' | 'payment' | 'product' | 'behavior';
+  description?: string;
+  category?: 'fraud' | 'address' | 'payment' | 'product' | 'behavior';
   ruleType?: string;
-  condition: RiskRuleCondition;
-  action: 'flag' | 'hold' | 'reject';
-  riskScore: number;
+  riskLevel?: string;
+  condition?: RiskRuleCondition;
+  conditions?: any;
+  action: 'flag' | 'hold' | 'reject' | 'block' | 'review' | string;
+  riskScore?: number;
+  score?: number;
   isEnabled: boolean;
   createdAt: string;
   updatedAt?: string;
+  [key: string]: any;
 }
 
 export interface RiskRuleCondition {
@@ -76,18 +85,20 @@ export interface RiskRuleCondition {
 
 export interface BlacklistItem {
   id: string;
-  type: BlacklistType;
-  typeName: string;
-  value: string;
-  reason: string;
-  addedBy: string;
-  addedByName: string;
-  isActive: boolean;
-  hitCount: number;
+  type?: BlacklistType;
+  typeName?: string;
+  value?: string;
+  reason?: string;
+  source?: string;
+  addedBy?: string;
+  addedByName?: string;
+  isActive?: boolean;
+  hitCount?: number;
   lastHitAt?: string;
   expiresAt?: string;
-  createdAt: string;
+  createdAt?: string;
   addedAt?: string;
+  [key: string]: any;
 }
 
 export interface BlacklistQueryParams {
@@ -104,17 +115,32 @@ export interface RiskReviewRequest {
 }
 
 export interface RiskDashboardData {
-  totalOrders: number;
-  highRiskOrders: number;
-  mediumRiskOrders: number;
-  lowRiskOrders: number;
-  autoApproved: number;
-  manualReview: number;
-  rejectedOrders: number;
-  fraudDetectionRate: number;
-  riskByType: Record<string, number>;
-  riskTrend: Array<{ date: string; high: number; medium: number; low: number }>;
-  blacklistCount: number;
+  totalOrders?: number;
+  todayOrders?: number;
+  highRiskOrders?: number;
+  mediumRiskOrders?: number;
+  lowRiskOrders?: number;
+  highRiskCount?: number;
+  mediumRiskCount?: number;
+  lowRiskCount?: number;
+  autoApproved?: number;
+  autoApprovedCount?: number;
+  manualReview?: number;
+  pendingReviewCount?: number;
+  pendingReview?: number;
+  rejectedOrders?: number;
+  rejectedCount?: number;
+  flaggedOrders?: number;
+  blockedOrders?: number;
+  reviewedOrders?: number;
+  passRate?: number;
+  avgReviewTime?: number;
+  fraudDetectionRate?: number;
+  riskByType?: Record<string, number>;
+  riskTrend?: Array<{ date: string; high: number; medium: number; low: number }>;
+  blacklistCount?: number;
+  activeRules?: number;
+  [key: string]: any;
 }
 
 export interface RiskScanResult {

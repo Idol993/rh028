@@ -28,30 +28,36 @@ export const SHIPMENT_STATUS_NAMES: Record<ShipmentStatus, string> = {
 
 export interface LogisticsChannel {
   id: string;
-  name: string;
+  name?: string;
   channelName?: string;
-  code: string;
+  code?: string;
   carrier: string;
   carrierName: string;
   serviceType?: LogisticsServiceType;
-  apiConfig: Record<string, any>;
+  apiConfig?: Record<string, any>;
   supportedCountries: string[];
-  basePrice: number;
+  basePrice?: number;
   baseCost?: number;
-  pricePerKg: number;
+  pricePerKg?: number;
   costPerKg?: number;
   pricePerVolKg?: number;
-  fuelSurcharge: number;
+  fuelSurcharge?: number;
   insuranceCostPercent?: number;
-  estimatedDaysMin: number;
-  estimatedDaysMax: number;
-  estimatedDeliveryDays?: number;
+  estimatedDaysMin?: number;
+  estimatedDaysMax?: number;
+  estimatedDeliveryDays?: number | { min: number; max: number };
   weightLimitMin?: number;
   weightLimitMax?: number;
+  weightLimit?: number;
   volumeLimit?: number;
+  dimensionLimit?: { length: number; width: number; height: number };
   isActive: boolean;
-  isDefault: boolean;
+  isDefault?: boolean;
+  isTracked?: boolean;
+  requiresSignature?: boolean;
+  insuranceAvailable?: boolean;
   createdAt: string;
+  [key: string]: any;
 }
 
 export interface TrackingEvent {
@@ -212,13 +218,16 @@ export interface Manifest {
 export interface TrackingRecord {
   id: string;
   trackingNo: string;
-  statusCode: string;
+  statusCode?: string;
+  status?: string;
   statusName: string;
   description: string;
   location?: string;
   timestamp: string;
-  courier: string;
-  rawData: string;
+  courier?: string;
+  operator?: string;
+  rawData?: string;
+  [key: string]: any;
 }
 
 export interface ShipmentAddress {
@@ -239,44 +248,50 @@ export interface ShipmentDimensions {
 
 export interface Shipment {
   id: string;
-  shipmentNo: string;
+  shipmentNo?: string;
   orderId: string;
-  orderNo: string;
+  orderNo?: string;
   fulfillmentId?: string;
-  warehouseId: string;
-  warehouseName: string;
-  logisticsId: string;
-  logisticsName: string;
-  carrier: string;
-  carrierName: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  logisticsId?: string;
+  logisticsName?: string;
+  carrier?: string;
+  carrierName?: string;
+  serviceName?: string;
   trackingNo: string;
-  status: ShipmentStatus;
-  statusName: string;
-  weight: number;
-  dimensions: ShipmentDimensions;
-  shippingCost: number;
-  insuranceCost: number;
-  declaredValue: number;
-  currency: string;
-  origin: ShipmentAddress;
-  destination: ShipmentAddress;
-  senderName: string;
-  senderContact: string;
-  recipientName: string;
-  recipientContact: string;
-  signatureRequired: boolean;
-  trackingHistory: TrackingRecord[];
+  status: ShipmentStatus | string;
+  statusName?: string;
+  weight?: number;
+  dimensions?: ShipmentDimensions;
+  shippingCost?: number;
+  insuranceCost?: number;
+  declaredValue?: number;
+  currency?: string;
+  origin?: ShipmentAddress;
+  destination?: ShipmentAddress;
+  destinationCountry?: string;
+  senderName?: string;
+  senderContact?: string;
+  recipientName?: string;
+  recipientContact?: string;
+  signatureRequired?: boolean;
+  trackingHistory?: TrackingRecord[];
   currentLocation?: string;
   estimatedDelivery?: string;
+  estimatedDeliveryDays?: number;
   actualDelivery?: string;
   exceptionType?: string;
   exceptionDescription?: string;
   exceptionReportedAt?: string;
   exceptionResolved?: boolean;
-  labelUrl: string;
+  labelUrl?: string;
   commercialInvoiceUrl?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  shippedAt?: string;
+  platformOrderNo?: string;
+  [key: string]: any;
 }
 
 export interface LogisticsStats {
@@ -285,6 +300,7 @@ export interface LogisticsStats {
   inTransit: number;
   pending: number;
   exception: number;
+  exceptions?: number;
   returned: number;
   onTimeRate: number;
   avgDeliveryTime: number;
@@ -302,4 +318,5 @@ export interface LogisticsStats {
   statusDistribution?: Record<TrackingStatus, number>;
   exceptionByType?: Record<string, number>;
   deliveryTimeTrend?: Array<{ date: string; avgDays: number; onTimeRate: number }>;
+  [key: string]: any;
 }

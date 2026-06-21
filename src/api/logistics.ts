@@ -1,7 +1,19 @@
 import type { ApiResponse } from '@/@types/api';
 import type { LogisticsChannel, Shipment, TrackingRecord, LogisticsStats } from '@/@types/logistics';
 import { mockRequest, mockPageRequest } from './client';
-import { mockLogisticsChannels, mockShipments, mockLogisticsStats, randomFromArray } from '@/mock/data';
+import { mockLogisticsChannels, mockShipments, mockLogisticsStats, randomFromArray, generateUUID } from '@/mock/data';
+
+const dynamicShipments: Shipment[] = [];
+const dynamicTrackingRecords = new Map<string, TrackingRecord[]>();
+
+const getAllShipments = () => {
+  return [...dynamicShipments, ...mockShipments];
+};
+
+export const registerShipment = (shipment: Shipment, trackingRecords: TrackingRecord[]) => {
+  dynamicShipments.unshift(shipment);
+  dynamicTrackingRecords.set(shipment.trackingNo, trackingRecords);
+};
 
 export const getLogisticsChannels = async (params: { 
   page?: number; 
@@ -69,7 +81,7 @@ export const getShipments = async (params: {
   endDate?: string;
   keyword?: string;
 }): Promise<ApiResponse<{ list: Shipment[]; total: number; page: number; pageSize: number }>> => {
-  let filtered = [...mockShipments];
+  let filtered = getAllShipments();
   
   if (params.status) {
     filtered = filtered.filter(s => s.status === params.status);
@@ -107,13 +119,16 @@ export const getShipments = async (params: {
 };
 
 export const getShipmentDetail = async (id: string): Promise<ApiResponse<Shipment>> => {
-  const shipment = mockShipments.find(s => s.id === id) || mockShipments[0];
+  const shipment = getAllShipments().find(s => s.id === id) || getAllShipments()[0];
   return mockRequest(shipment);
 };
 
 export const getTrackingInfo = async (trackingNo: string): Promise<ApiResponse<Array<TrackingRecord>>> => {
-  const shipment = mockShipments.find(s => s.trackingNo === trackingNo) || mockShipments[0];
-  return mockRequest(shipment.trackingHistory);
+  if (dynamicTrackingRecords.has(trackingNo)) {
+    return mockRequest(dynamicTrackingRecords.get(trackingNo)!, 300);
+  }
+  const shipment = getAllShipments().find(s => s.trackingNo === trackingNo) || getAllShipments()[0];
+  return mockRequest(shipment.trackingHistory || [], 300);
 };
 
 export const createShipment = async (data: {
@@ -195,7 +210,7 @@ export const calculateShippingCost = async (data: {
   logisticsName: string;
   carrier: string;
   serviceType?: string;
-  estimatedDeliveryDays: number;
+  estimatedDeliveryDays: number | { min: number; max: number };
   shippingCost: number;
   insuranceCost: number;
   totalCost: number;
